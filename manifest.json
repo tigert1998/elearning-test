@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "elearning test",
+  "description": "国网e学堂考试插件",
+  "version": "5.3",
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "jquery.js",
+        "content_script.js"
+      ],
+      "css": [
+        "styles.css"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "downloads",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*",
+    "<all_urls>"
+  ],
+  "action": {
+    "default_icon": "icon.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "tiku/*",
+        "tiku_manifest.json"
+      ],
+      "matches": []
+    }
+  ]
+}
