@@ -15,10 +15,13 @@ async function searchInExcel(searchText) {
     const results = [];
 
     try {
-        // 获取文件列表
-        const fileList = await getFileList();
+        let fileList = await new Promise((resolve, reject) => {
+            chrome.storage.local.get('eLearningTestFileList', (result) => {
+                let fileList = result.eLearningTestFileList;
+                resolve(fileList);
+            });
+        });
 
-        // 并行处理所有Excel文件
         await Promise.all(fileList.map(async file => {
             try {
                 const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
@@ -56,10 +59,4 @@ async function searchInExcel(searchText) {
     }
 
     return results;
-}
-
-async function getFileList() {
-    const response = await fetch(chrome.runtime.getURL('tiku_manifest.json'));
-    const fileList = await response.json();
-    return fileList;
 }

@@ -1,10 +1,9 @@
 // 获取所有文本节点
-var textNodes = document.evaluate("//text()", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
+let textNodes = document.evaluate("//text()", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
 
 // 循环遍历所有文本节点，将其设置为可选中和复制
-for (var i = 0; i < textNodes.snapshotLength; i++) {
-    var node = textNodes.snapshotItem(i);
-    // node.parentNode.setAttribute("style", "user-select: text !important");
+for (let i = 0; i < textNodes.snapshotLength; i++) {
+    let node = textNodes.snapshotItem(i);
     node.parentNode.style.userSelect = "text";
 }
 
@@ -29,16 +28,13 @@ document.addEventListener("mouseup", function (event) {
                 // 创建一行匹配结果
                 const resultDiv = document.createElement("div");
 
-                //打印文件、sheet、行号、内容
-                // resultDiv.innerText = `文件：${row.file}，Sheet：${row.sheet}，行号：${row.row}，内容：${row.content}`;
-
                 // 高亮显示匹配文本
                 const content = row.content;
                 const searchTerm = selectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                 const regExp = new RegExp(searchTerm, 'gi');
                 const highlightedContent = content.replace(regExp, `<span class="highlighted-text">$&</span>`);
 
-                //标红答案：
+                // 标红答案：
                 const resultContent = highlightedContent.replace(/答案/g, `<span class="red-text">$&</span>`);
                 resultDiv.innerHTML = `题目：${resultContent}`;
 
