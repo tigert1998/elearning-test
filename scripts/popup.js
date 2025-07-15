@@ -16,7 +16,7 @@ button.onclick = () => {
             reader.readEntries(function (entries) {
                 let fileList = [];
                 entries.forEach((entry) => {
-                    if (entry.name.match(/\.xlsx?$/)) {
+                    if (entry.name.match(/\.xlsx$/) && !entry.name.startsWith("~$") && !entry.name.startsWith(".~")) {
                         fileList.push(entry.name);
                     }
                 });
