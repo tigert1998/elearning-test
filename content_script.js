@@ -8,11 +8,27 @@ for (let i = 0; i < textNodes.snapshotLength; i++) {
 }
 
 // 监听鼠标选中事件
-document.addEventListener("mouseup", function (event) {
+document.addEventListener("mouseup", (event) => {
+    function constructRowHTML(row, selectedText) {
+        let text = "";
+        for (let [k, v] of Object.entries(row)) {
+            if (String(v).trim() === "") continue;
+            if (k.includes("答案")) {
+                text += `<span class="red-text">【${k}】${v}</span>`;
+            } else {
+                text += `【${k}】${v}`;
+            }
+        }
+
+        const searchTerm = selectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regExp = new RegExp(searchTerm, 'gi');
+        return text.replace(regExp, `<span class="highlighted-text">$&</span>`);
+    }
+
     const selectedText = window.getSelection().toString().trim();
     if (selectedText) {
         // 向后台发送消息，请求处理文本内容
-        chrome.runtime.sendMessage({ text: selectedText }, function (response) {
+        chrome.runtime.sendMessage({ text: selectedText }, (response) => {
             // 创建结果提示框
             const tooltip = document.createElement("div");
             tooltip.style.position = "absolute";
@@ -24,19 +40,10 @@ document.addEventListener("mouseup", function (event) {
             tooltip.style.padding = "5px";
             tooltip.style.zIndex = "9999";
 
-            response.forEach(row => {
+            response.forEach((row) => {
                 // 创建一行匹配结果
                 const resultDiv = document.createElement("div");
-
-                // 高亮显示匹配文本
-                const content = row.content;
-                const searchTerm = selectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const regExp = new RegExp(searchTerm, 'gi');
-                const highlightedContent = content.replace(regExp, `<span class="highlighted-text">$&</span>`);
-
-                // 标红答案：
-                const resultContent = highlightedContent.replace(/答案/g, `<span class="red-text">$&</span>`);
-                resultDiv.innerHTML = `题目：${resultContent}`;
+                resultDiv.innerHTML = constructRowHTML(row.row, selectedText);
 
                 // 添加匹配结果到结果提示框中
                 tooltip.appendChild(resultDiv);
@@ -46,7 +53,7 @@ document.addEventListener("mouseup", function (event) {
             document.body.appendChild(tooltip);
 
             // 点击页面其他位置，隐藏结果提示框
-            document.addEventListener("mousedown", function (event) {
+            document.addEventListener("mousedown", (event) => {
                 const isTooltip = tooltip.contains(event.target);
                 if (!isTooltip) {
                     tooltip.remove();

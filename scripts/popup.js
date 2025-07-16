@@ -20,7 +20,7 @@ button.onclick = () => {
                         fileList.push(entry.name);
                     }
                 });
-                let element = document.getElementById("file_list");
+                let element = document.getElementById("file-list");
                 element.innerHTML = constructFileListHTML(fileList);
                 chrome.storage.local.set({ eLearningTestFileList: fileList });
             });

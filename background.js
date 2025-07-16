@@ -1,7 +1,7 @@
 importScripts('xlsx.full.min.js'); // 确保在项目中包含XLSX库
 
 // 监听来自content_script.js的消息
-chrome.runtime.onMessage.addListener(function (request, sender, sendResponse) {
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     searchInExcel(request.text).then(result => {
         sendResponse(result);
     }).catch(error => {
@@ -22,7 +22,7 @@ async function searchInExcel(searchText) {
             });
         });
 
-        await Promise.all(fileList.map(async file => {
+        await Promise.all(fileList.map(async (file) => {
             try {
                 const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
                 const response = await fetch(fileUrl);
@@ -35,15 +35,14 @@ async function searchInExcel(searchText) {
                 // 遍历所有工作表
                 workbook.SheetNames.forEach(sheetName => {
                     const worksheet = workbook.Sheets[sheetName];
-                    const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 2 });
 
                     // 搜索匹配的行
                     sheetData.forEach((row, rowIndex) => {
-                        const rowText = row.join(',');
-                        if (row.some(cell => String(cell).includes(searchText))) {
+                        if (Object.values(row).some((cell) => String(cell).includes(searchText))) {
                             results.push({
-                                row: rowIndex + 1,
-                                content: rowText,
+                                rowIndex: rowIndex,
+                                row: row,
                                 file: file,
                                 sheet: sheetName
                             });
