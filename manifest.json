@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "elearning test",
-  "description": "国网e学堂考试插件",
+  "description": "苏电e学堂考试插件",
   "version": "5.3",
   "content_scripts": [
     {

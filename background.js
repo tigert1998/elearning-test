@@ -5,57 +5,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     searchInExcel(request.text).then(result => {
         sendResponse(result);
     }).catch(error => {
-        console.error('搜索失败:', error);
+        console.error('Fail to search: ', error);
         sendResponse([]);
     });
     return true; // 保持连接开放以支持异步响应
 });
 
 async function searchInExcel(searchText) {
-    const results = [];
+    let fileList = await new Promise((resolve, reject) => {
+        chrome.storage.local.get('eLearningTestFileList', (result) => {
+            let fileList = result.eLearningTestFileList;
+            resolve(fileList);
+        });
+    });
 
-    try {
-        let fileList = await new Promise((resolve, reject) => {
-            chrome.storage.local.get('eLearningTestFileList', (result) => {
-                let fileList = result.eLearningTestFileList;
-                resolve(fileList);
+    let arrays = await Promise.all(fileList.map(async (file) => {
+        const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
+        const response = await fetch(fileUrl);
+
+        if (!response.ok) return Promise.reject(new Error(`Fail to load file: ${file}`));
+
+        const arrayBuffer = await response.arrayBuffer();
+        const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
+
+        let results = [];
+
+        // 遍历所有工作表
+        workbook.SheetNames.forEach(sheetName => {
+            const worksheet = workbook.Sheets[sheetName];
+            const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 2 });
+
+            // 搜索匹配的行
+            sheetData.forEach((row, rowIndex) => {
+                if (Object.values(row).some((cell) => String(cell).includes(searchText))) {
+                    results.push({
+                        rowIndex: rowIndex,
+                        row: row,
+                        file: file,
+                        sheet: sheetName
+                    });
+                }
             });
         });
 
-        await Promise.all(fileList.map(async (file) => {
-            try {
-                const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
-                const response = await fetch(fileUrl);
+        return results;
+    }));
 
-                if (!response.ok) throw new Error(`文件加载失败: ${file}`);
-
-                const arrayBuffer = await response.arrayBuffer();
-                const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
-
-                // 遍历所有工作表
-                workbook.SheetNames.forEach(sheetName => {
-                    const worksheet = workbook.Sheets[sheetName];
-                    const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 2 });
-
-                    // 搜索匹配的行
-                    sheetData.forEach((row, rowIndex) => {
-                        if (Object.values(row).some((cell) => String(cell).includes(searchText))) {
-                            results.push({
-                                rowIndex: rowIndex,
-                                row: row,
-                                file: file,
-                                sheet: sheetName
-                            });
-                        }
-                    });
-                });
-            } catch (error) {
-                console.error(`处理文件 ${file} 时出错:`, error);
-            }
-        }));
-    } catch (error) {
-        console.error('获取文件列表失败:', error);
-    }
-
+    let results = [];
+    arrays.forEach((arr) => results = results.concat(arr));
     return results;
 }

@@ -7,6 +7,15 @@ for (let i = 0; i < textNodes.snapshotLength; i++) {
     node.parentNode.style.userSelect = "text";
 }
 
+let tooltips = [];
+
+// 点击页面其他位置，隐藏结果提示框
+document.addEventListener("mousedown", (event) => {
+    let tooltipsToRemove = tooltips.filter((tooltip) => !tooltip.contains(event.target));
+    tooltips = tooltips.filter((tooltip) => tooltip.contains(event.target));
+    tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
+});
+
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
     function constructRowHTML(row, selectedText) {
@@ -52,13 +61,7 @@ document.addEventListener("mouseup", (event) => {
             // 添加结果提示框到页面中
             document.body.appendChild(tooltip);
 
-            // 点击页面其他位置，隐藏结果提示框
-            document.addEventListener("mousedown", (event) => {
-                const isTooltip = tooltip.contains(event.target);
-                if (!isTooltip) {
-                    tooltip.remove();
-                }
-            });
+            tooltips.push(tooltip);
         });
     }
 });
