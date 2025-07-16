@@ -2,7 +2,7 @@ importScripts('xlsx.full.min.js'); // 确保在项目中包含XLSX库
 
 // 监听来自content_script.js的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    searchInExcel(request.text).then(result => {
+    searchInExcel(request.searchTerm).then(result => {
         sendResponse(result);
     }).catch(error => {
         console.error('Fail to search: ', error);
@@ -11,7 +11,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // 保持连接开放以支持异步响应
 });
 
-async function searchInExcel(searchText) {
+async function searchInExcel(searchTerm) {
+    let regExp = new RegExp(searchTerm, "gi");
+
     let fileList = await new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestFileList', (result) => {
             let fileList = result.eLearningTestFileList;
@@ -37,7 +39,7 @@ async function searchInExcel(searchText) {
 
             // 搜索匹配的行
             sheetData.forEach((row, rowIndex) => {
-                if (Object.values(row).some((cell) => String(cell).includes(searchText))) {
+                if (Object.values(row).some((cell) => String(cell).match(regExp))) {
                     results.push({
                         rowIndex: rowIndex,
                         row: row,

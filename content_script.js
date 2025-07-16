@@ -18,7 +18,7 @@ document.addEventListener("mousedown", (event) => {
 
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
-    function constructRowHTML(row, selectedText) {
+    function constructRowHTML(row, regExp) {
         let text = "";
         for (let [k, v] of Object.entries(row)) {
             if (String(v).trim() === "") continue;
@@ -29,40 +29,44 @@ document.addEventListener("mouseup", (event) => {
             }
         }
 
-        const searchTerm = selectedText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regExp = new RegExp(searchTerm, 'gi');
         return text.replace(regExp, `<span class="highlighted-text">$&</span>`);
     }
 
     const selectedText = window.getSelection().toString().trim();
-    if (selectedText) {
-        // 向后台发送消息，请求处理文本内容
-        chrome.runtime.sendMessage({ text: selectedText }, (response) => {
-            // 创建结果提示框
-            const tooltip = document.createElement("div");
-            tooltip.style.position = "absolute";
-            tooltip.style.top = event.pageY + "px";
-            tooltip.style.left = event.pageX + "px";
-            tooltip.style.backgroundColor = "#fff";
-            tooltip.style.color = "#000";
-            tooltip.style.border = "1px solid #ccc";
-            tooltip.style.padding = "5px";
-            tooltip.style.zIndex = "9999";
+    if (selectedText === "") return;
+    let searchTerm = selectedText.replace(/\s+/g, "")
+        .split('')
+        .map(c => c.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&'))
+        .join('\\s*');
+    // emoji is not supported yet
+    const regExp = new RegExp(searchTerm, 'gi');
 
-            response.forEach((row) => {
-                // 创建一行匹配结果
-                const resultDiv = document.createElement("div");
-                resultDiv.innerHTML = constructRowHTML(row.row, selectedText);
+    // 向后台发送消息，请求处理文本内容
+    chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+        // 创建结果提示框
+        const tooltip = document.createElement("div");
+        tooltip.style.position = "absolute";
+        tooltip.style.top = event.pageY + "px";
+        tooltip.style.left = event.pageX + "px";
+        tooltip.style.backgroundColor = "#fff";
+        tooltip.style.color = "#000";
+        tooltip.style.border = "1px solid #ccc";
+        tooltip.style.padding = "5px";
+        tooltip.style.zIndex = "9999";
 
-                // 添加匹配结果到结果提示框中
-                tooltip.appendChild(resultDiv);
-            });
+        response.forEach((row) => {
+            // 创建一行匹配结果
+            const resultDiv = document.createElement("div");
+            resultDiv.innerHTML = constructRowHTML(row.row, regExp);
 
-            // 添加结果提示框到页面中
-            document.body.appendChild(tooltip);
-
-            tooltips.push(tooltip);
+            // 添加匹配结果到结果提示框中
+            tooltip.appendChild(resultDiv);
         });
-    }
+
+        // 添加结果提示框到页面中
+        document.body.appendChild(tooltip);
+
+        tooltips.push(tooltip);
+    });
 });
 
