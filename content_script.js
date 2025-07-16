@@ -18,9 +18,11 @@ document.addEventListener("mousedown", (event) => {
 
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
-    function constructRowHTML(row, regExp) {
+    function constructRowHTML(headers, row, regExp) {
         let text = "";
-        for (let [k, v] of Object.entries(row)) {
+        for (let i = 0; i < headers.length; i++) {
+            let k = headers[i];
+            let v = row[i];
             if (String(v).trim() === "") continue;
             if (k.includes("答案")) {
                 text += `<span class="red-text">【${k}】${v}</span>`;
@@ -42,7 +44,7 @@ document.addEventListener("mouseup", (event) => {
     const regExp = new RegExp(searchTerm, 'gi');
 
     // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+    chrome.runtime.sendMessage({ text: selectedText }, (response) => {
         // 创建结果提示框
         const tooltip = document.createElement("div");
         tooltip.style.position = "absolute";
@@ -54,10 +56,10 @@ document.addEventListener("mouseup", (event) => {
         tooltip.style.padding = "5px";
         tooltip.style.zIndex = "9999";
 
-        response.forEach((row) => {
+        response.forEach((headersAndRow) => {
             // 创建一行匹配结果
             const resultDiv = document.createElement("div");
-            resultDiv.innerHTML = constructRowHTML(row.row, regExp);
+            resultDiv.innerHTML = constructRowHTML(headersAndRow[0], headersAndRow[1], regExp);
 
             // 添加匹配结果到结果提示框中
             tooltip.appendChild(resultDiv);

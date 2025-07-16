@@ -17,13 +17,14 @@
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "service_worker.js"
   },
   "permissions": [
     "tabs",
     "activeTab",
     "downloads",
-    "storage"
+    "storage",
+    "unlimitedStorage"
   ],
   "host_permissions": [
     "http://*/*",
