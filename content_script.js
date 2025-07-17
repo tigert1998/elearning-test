@@ -23,13 +23,13 @@ document.addEventListener("mouseup", (event) => {
         for (let [k, v] of Object.entries(row)) {
             if (String(v).trim() === "") continue;
             if (k.includes("答案")) {
-                text += `<span class="red-text">【${k}】${v}</span>`;
+                text += `<span class="elearning-test-red">【${k}】${v}</span>`;
             } else {
                 text += `【${k}】${v}`;
             }
         }
 
-        return text.replace(regExp, `<span class="highlighted-text">$&</span>`);
+        return text.replace(regExp, `<span class="elearning-test-highlighted">$&</span>`);
     }
 
     const selectedText = window.getSelection().toString().trim();
@@ -54,14 +54,20 @@ document.addEventListener("mouseup", (event) => {
         tooltip.style.padding = "5px";
         tooltip.style.zIndex = "9999";
 
-        response.forEach((row) => {
-            // 创建一行匹配结果
-            const resultDiv = document.createElement("div");
-            resultDiv.innerHTML = constructRowHTML(row.row, regExp);
+        if (response.error) {
+            const div = document.createElement("div");
+            div.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
+            tooltip.appendChild(div);
+        } else {
+            response.results.forEach((row) => {
+                // 创建一行匹配结果
+                const div = document.createElement("div");
+                div.innerHTML = constructRowHTML(row.row, regExp);
 
-            // 添加匹配结果到结果提示框中
-            tooltip.appendChild(resultDiv);
-        });
+                // 添加匹配结果到结果提示框中
+                tooltip.appendChild(div);
+            });
+        }
 
         // 添加结果提示框到页面中
         document.body.appendChild(tooltip);
