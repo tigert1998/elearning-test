@@ -16,20 +16,89 @@ document.addEventListener("mousedown", (event) => {
     tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
 });
 
+let matchAnswerRules = [
+    (row) => {
+        // 选项A    选项B    选项C    选项D    答案
+
+        let object = Object.fromEntries(row);
+        let ans = object["答案"];
+        if (ans == null) return null;
+
+        let match = "";
+        let text = "";
+        for (let [k, v] of row) {
+            if (v == null || String(v).trim() === "") continue;
+            let red = false;
+            if (k === "答案") {
+                red = true;
+            } else if (k.startsWith("选项") && k.length === 3 && ans.includes(k[2])) {
+                match += k[2];
+                red = true;
+            }
+
+            if (red) text += `<span class="elearning-test-red">【${k}】${v}</span>`;
+            else text += `【${k}】${v}`;
+        }
+
+        if ((new Set(ans)).size != (new Set(match)).size) return null;
+
+        return text;
+    },
+    (row) => {
+        // 选项              答案
+        // A-选项1|B-选项2     B
+
+        let object = Object.fromEntries(row);
+        let ans = object["答案"];
+        if (ans == null) return null;
+        if (object["选项"] == null) return null;
+
+        let text = "";
+        for (let [k, v] of row) {
+            if (v == null || String(v).trim() === "") continue;
+            if (k === "答案") {
+                text += `<span class="elearning-test-red">【${k}】${v}</span>`;
+            } else if (k === "选项") {
+                text += `【${k}】`;
+                let match = "";
+                v.split("|").forEach((opt, i) => {
+                    if (i > 0) text += "|";
+                    let c = opt.trim()[0];
+                    if (ans.includes(c)) {
+                        match += c;
+                        text += `<span class="elearning-test-red">${opt}</span>`;
+                    } else {
+                        text += opt;
+                    }
+                });
+                if ((new Set(ans)).size != (new Set(match)).size) return null;
+            } else text += `【${k}】${v}`;
+        }
+
+        return text;
+    },
+    (row) => {
+        // default
+        let text = "";
+        for (let [k, v] of row) {
+            if (v == null || String(v).trim() === "") continue;
+            text += `【${k}】${v}`;
+        }
+        return text;
+    }
+];
+
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
     function constructRowHTML(row, regExp) {
         let text = "";
-        for (let [k, v] of Object.entries(row)) {
-            if (String(v).trim() === "") continue;
-            if (k.includes("答案")) {
-                text += `<span class="elearning-test-red">【${k}】${v}</span>`;
-            } else {
-                text += `【${k}】${v}`;
-            }
+        for (let func of matchAnswerRules) {
+            text = func(row);
+            if (text != null) break;
         }
 
-        return text.replace(regExp, `<span class="elearning-test-highlighted">$&</span>`);
+        let blackStar = "&#9733;";
+        return blackStar + text.replace(regExp, `<span class="elearning-test-highlighted">$&</span>`);
     }
 
     const selectedText = window.getSelection().toString().trim();

@@ -35,19 +35,21 @@ async function searchInExcel(searchTerm) {
         // 遍历所有工作表
         workbook.SheetNames.forEach(sheetName => {
             const worksheet = workbook.Sheets[sheetName];
-            const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 2 });
+            const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            let headers = sheetData[0].map((header) => header.trim());
 
-            // 搜索匹配的行
-            sheetData.forEach((row, rowIndex) => {
-                if (Object.values(row).some((cell) => String(cell).match(regExp))) {
+            for (let i = 1; i < sheetData.length; i++) {
+                let cells = sheetData[i];
+                if (cells.some((cell) => String(cell).match(regExp))) {
+                    let row = headers.map((header, idx) => [header, cells[idx]]);
                     results.push({
-                        rowIndex: rowIndex,
+                        rowIndex: i - 1,
                         row: row,
                         file: file,
                         sheet: sheetName
                     });
                 }
-            });
+            }
         });
 
         return results;
