@@ -18,63 +18,61 @@ document.addEventListener("mousedown", (event) => {
 
 let matchAnswerRules = [
     (row) => {
-        // 选项A    选项B    选项C    选项D    答案
+        // 题干    选项A    选项B    选项C    选项D    答案
 
         let object = Object.fromEntries(row);
         let ans = object["答案"];
         if (ans == null) return null;
+        let problem = object["题干"];
+        if (problem == null) return null;
 
         let match = "";
-        let text = "";
+        let text = `【题干】${problem}<br>`;
         for (let [k, v] of row) {
-            if (v == null || String(v).trim() === "") continue;
-            let red = false;
-            if (k === "答案") {
-                red = true;
-            } else if (k.startsWith("选项") && k.length === 3 && ans.includes(k[2])) {
+            if (!k.startsWith("选项") || v == null || String(v).trim() === "") continue;
+            if (k.length === 3 && ans.includes(k[2])) {
                 match += k[2];
-                red = true;
+                text += `<span class="elearning-test-answer">【${k}】${v}</span>`;
+            } else {
+                text += `【${k}】${v}`;
             }
-
-            if (red) text += `<span class="elearning-test-red">【${k}】${v}</span>`;
-            else text += `【${k}】${v}`;
+            text += "<br>";
         }
 
         if ((new Set(ans)).size != (new Set(match)).size) return null;
 
+        text += `<span class="elearning-test-answer">【答案】${ans}</span>`;
+
         return text;
     },
     (row) => {
-        // 选项              答案
-        // A-选项1|B-选项2     B
+        // 题干               选项              答案
+        // 测试题目的题干     A-选项1|B-选项2     B
 
         let object = Object.fromEntries(row);
         let ans = object["答案"];
         if (ans == null) return null;
-        if (object["选项"] == null) return null;
+        let options = object["选项"];
+        if (options == null) return null;
+        let problem = object["题干"];
+        if (problem == null) return null;
 
-        let text = "";
-        for (let [k, v] of row) {
-            if (v == null || String(v).trim() === "") continue;
-            if (k === "答案") {
-                text += `<span class="elearning-test-red">【${k}】${v}</span>`;
-            } else if (k === "选项") {
-                text += `【${k}】`;
-                let match = "";
-                v.split("|").forEach((opt, i) => {
-                    if (i > 0) text += "|";
-                    let c = opt.trim()[0];
-                    if (ans.includes(c)) {
-                        match += c;
-                        text += `<span class="elearning-test-red">${opt}</span>`;
-                    } else {
-                        text += opt;
-                    }
-                });
-                if ((new Set(ans)).size != (new Set(match)).size) return null;
-            } else text += `【${k}】${v}`;
-        }
+        let text = `【题干】${problem}<br>`;
 
+        let match = "";
+        options.split("|").forEach((opt) => {
+            let c = opt.trim()[0];
+            if (ans.includes(c)) {
+                match += c;
+                text += `<span class="elearning-test-answer">${opt}</span>`;
+            } else {
+                text += opt;
+            }
+            text += "<br>";
+        });
+        if ((new Set(ans)).size != (new Set(match)).size) return null;
+
+        text += `<span class="elearning-test-answer">【答案】${ans}</span>`;
         return text;
     },
     (row) => {
@@ -97,8 +95,7 @@ document.addEventListener("mouseup", (event) => {
             if (text != null) break;
         }
 
-        let blackStar = "&#9733;";
-        return blackStar + text.replace(regExp, `<span class="elearning-test-highlighted">$&</span>`);
+        return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
     }
 
     const selectedText = window.getSelection().toString().trim();
@@ -114,28 +111,26 @@ document.addEventListener("mouseup", (event) => {
     chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
         // 创建结果提示框
         const tooltip = document.createElement("div");
-        tooltip.style.position = "absolute";
+        tooltip.className = "elearning-test-tooltip";
         tooltip.style.top = event.pageY + "px";
         tooltip.style.left = event.pageX + "px";
-        tooltip.style.backgroundColor = "#fff";
-        tooltip.style.color = "#000";
-        tooltip.style.border = "1px solid #ccc";
-        tooltip.style.padding = "5px";
-        tooltip.style.zIndex = "9999";
 
         if (response.error) {
             const div = document.createElement("div");
             div.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
             tooltip.appendChild(div);
         } else {
-            response.results.forEach((row) => {
-                // 创建一行匹配结果
-                const div = document.createElement("div");
-                div.innerHTML = constructRowHTML(row.row, regExp);
-
-                // 添加匹配结果到结果提示框中
-                tooltip.appendChild(div);
-            });
+            let numColumns = 3;
+            let html = "<table>";
+            for (let i = 0; i < response.results.length; i += numColumns) {
+                html += "<tr>";
+                for (let j = i; j < i + numColumns && j < response.results.length; j++) {
+                    html += `<td class="elearning-test-table-cell">${constructRowHTML(response.results[j].row, regExp)}</td>`;
+                }
+                html += "</tr>";
+            }
+            html += "</table>";
+            tooltip.innerHTML = html;
         }
 
         // 添加结果提示框到页面中
