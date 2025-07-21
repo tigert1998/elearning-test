@@ -9,11 +9,21 @@
         "<all_urls>"
       ],
       "js": [
-        "content_script.js"
+        "content-script.js"
       ],
       "css": [
         "styles.css"
-      ]
+      ],
+      "run_at": "document_end"
+    },
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "script-injector.js"
+      ],
+      "run_at": "document_start"
     }
   ],
   "background": {
@@ -37,9 +47,12 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "tiku/*"
+        "tiku/*",
+        "injected-script.js"
       ],
-      "matches": []
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

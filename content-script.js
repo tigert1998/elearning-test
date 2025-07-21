@@ -1,12 +1,3 @@
-// 获取所有文本节点
-let textNodes = document.evaluate("//text()", document, null, XPathResult.UNORDERED_NODE_SNAPSHOT_TYPE, null);
-
-// 循环遍历所有文本节点，将其设置为可选中和复制
-for (let i = 0; i < textNodes.snapshotLength; i++) {
-    let node = textNodes.snapshotItem(i);
-    node.parentNode.style.userSelect = "text";
-}
-
 let tooltips = [];
 
 // 点击页面其他位置，隐藏结果提示框
