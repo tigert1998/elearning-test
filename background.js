@@ -5,7 +5,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     searchInExcel(request.searchTerm).then((results) => {
         sendResponse({ results: results, error: null });
     }).catch((error) => {
-        sendResponse({ results: null, error: error.message });
+        sendResponse({ results: null, error: error.stack });
     });
     return true; // 保持连接开放以支持异步响应
 });
@@ -36,6 +36,7 @@ async function searchInExcel(searchTerm) {
         workbook.SheetNames.forEach(sheetName => {
             const worksheet = workbook.Sheets[sheetName];
             const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+            if (sheetData.length === 0) return;
             let headers = sheetData[0].map((header) => header.trim());
 
             for (let i = 1; i < sheetData.length; i++) {
