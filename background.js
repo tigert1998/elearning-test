@@ -16,7 +16,7 @@ async function searchInExcel(searchTerm) {
     let fileList = await new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestFileList', (result) => {
             let fileList = result.eLearningTestFileList;
-            if (fileList == null) reject(new Error("XLSX list is not prepared"));
+            if (fileList == null) reject(new Error("Sheet list is not prepared"));
             else resolve(fileList);
         });
     });

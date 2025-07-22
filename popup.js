@@ -2,7 +2,7 @@ let button = document.getElementById("button")
 
 button.onclick = () => {
     function constructFileListHTML(fileList) {
-        let ret = "<p>搜索到题库列表：</p><p>（目前仅支持xlsx格式的题库）</p><ul>";
+        let ret = "<p>搜索到题库列表：</p><ul>";
         for (let i = 0; i < fileList.length; i++) {
             ret += `<li>${fileList[i]}</li>`;
         }
@@ -16,7 +16,7 @@ button.onclick = () => {
             reader.readEntries((entries) => {
                 let fileList = [];
                 entries.forEach((entry) => {
-                    if (entry.name.match(/\.xlsx$/) && !entry.name.startsWith("~$") && !entry.name.startsWith(".~")) {
+                    if (entry.name.match(/\.xlsx?$/i) && !entry.name.startsWith("~$") && !entry.name.startsWith(".~")) {
                         fileList.push(entry.name);
                     }
                 });
