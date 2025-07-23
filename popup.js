@@ -1,13 +1,21 @@
-document.getElementById("update-file-list-btn").onclick = () => {
-    function constructFileListHTML(fileList) {
-        let ret = "<p>搜索到题库列表：</p><ul>";
-        for (let i = 0; i < fileList.length; i++) {
-            ret += `<li>${fileList[i]}</li>`;
-        }
-        ret += "</ul>";
-        return ret;
+let constructFileListHTML = (fileList) => {
+    let ret = "<p>当前题库列表：</p><ul>";
+    for (let i = 0; i < fileList.length; i++) {
+        ret += `<li>${fileList[i]}</li>`;
     }
+    ret += "</ul>";
+    return ret;
+}
 
+chrome.storage.local.get('eLearningTestFileList', (result) => {
+    let fileList = result.eLearningTestFileList;
+    if (fileList != null) {
+        let element = document.getElementById("file-list");
+        element.innerHTML = constructFileListHTML(fileList);
+    }
+});
+
+document.getElementById("update-file-list-btn").onclick = () => {
     chrome.runtime.getPackageDirectoryEntry(root => {
         root.getDirectory('tiku', {}, (directoryEntry) => {
             let reader = directoryEntry.createReader();
@@ -42,6 +50,9 @@ oneClickCompleteBtn.onclick = () => {
                 html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
             }
             element.innerHTML = html;
+            oneClickCompleteBtn.disabled = false;
+        }).catch((error) => {
+            element.innerHTML = `<p>发送消息时遇到错误：${error.stack}</p><p>请确认是否打开了页面。</p>`;
             oneClickCompleteBtn.disabled = false;
         });
     });

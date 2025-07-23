@@ -15,10 +15,10 @@ let parseAnswerRules = [
         let problem = object["题干"];
         if (problem == null) return null;
 
-        let obj = { "problem": problem, "answer": ans, "options": {} };
+        let obj = { "problem": String(problem), "answer": ans, "options": {} };
         for (let [k, v] of row) {
             if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
-            obj["options"][k[2]] = v;
+            obj["options"][k[2]] = String(v);
         }
         if (!(new Set(ans)).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
 
@@ -36,7 +36,7 @@ let parseAnswerRules = [
         let problem = object["题干"];
         if (problem == null) return null;
 
-        let obj = { "problem": problem, "answer": ans, "options": {} };
+        let obj = { "problem": String(problem), "answer": ans, "options": {} };
 
         options.split("|").forEach((opt) => {
             let c = opt.trim()[0];
@@ -141,7 +141,7 @@ let tryMatch = (answerRow, options) => {
     if (Object.entries(obj["options"]).length !== options.length) return null;
 
     let matches = options.map((option) => {
-        let regExp = new RegExp(constructSearchRegex(option), "gi");
+        let regExp = new RegExp(`^${constructSearchRegex(option)}$`, "gi");
         for (let [k, v] of Object.entries(obj["options"])) {
             if (v.match(regExp)) return k;
         }
@@ -165,6 +165,7 @@ let oneClickComplete = async () => {
             options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
         };
         let inputs = question.querySelectorAll("input");
+        for (let input of inputs) input.checked = false;
 
         let searchTerm = constructSearchRegex(desc);
         let promise = chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response) => {
@@ -175,7 +176,7 @@ let oneClickComplete = async () => {
                 for (let result of response.results) {
                     let indices = tryMatch(result.row, options);
                     if (indices == null) continue;
-                    for (let idx of indices) inputs[idx].click();
+                    for (let idx of indices) inputs[idx].checked = true;
                     answered = true;
                     break;
                 }
