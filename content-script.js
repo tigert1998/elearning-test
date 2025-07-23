@@ -1,13 +1,11 @@
-let tooltips = [];
+let constructSearchRegex = (text) => {
+    return text.replace(/\s+/g, "")
+        .split('')
+        .map(c => c.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&'))
+        .join('\\s*');
+};
 
-// 点击页面其他位置，隐藏结果提示框
-document.addEventListener("mousedown", (event) => {
-    let tooltipsToRemove = tooltips.filter((tooltip) => !tooltip.contains(event.target));
-    tooltips = tooltips.filter((tooltip) => tooltip.contains(event.target));
-    tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
-});
-
-let matchAnswerRules = [
+let parseAnswerRules = [
     (row) => {
         // 题干    选项A    选项B    选项C    选项D    答案
 
@@ -19,12 +17,10 @@ let matchAnswerRules = [
 
         let obj = { "problem": problem, "answer": ans, "options": {} };
         for (let [k, v] of row) {
-            if (!k.startsWith("选项") || v == null || String(v).trim() === "") continue;
+            if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
             obj["options"][k[2]] = v;
         }
-        let match = Object.keys(obj["options"]);
-
-        if ((new Set(ans)).size != (new Set(match)).size) return null;
+        if (!(new Set(ans)).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -46,8 +42,7 @@ let matchAnswerRules = [
             let c = opt.trim()[0];
             obj["options"][c] = opt.trim().substring(2);
         });
-        let match = Object.keys(obj["options"]);
-        if ((new Set(ans)).size != (new Set(match)).size) return null;
+        if (!(new Set(ans)).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -62,34 +57,40 @@ let matchAnswerRules = [
     }
 ];
 
-let constructSearchRegex = (text) => {
-    return text.replace(/\s+/g, "")
-        .split('')
-        .map(c => c.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&'))
-        .join('\\s*');
+let parseAnswer = (row) => {
+    for (let func of parseAnswerRules) {
+        let obj = func(row);
+        if (obj != null) return obj;
+    }
 };
+
+let tooltips = [];
+
+// 点击页面其他位置，隐藏结果提示框
+document.addEventListener("mousedown", (event) => {
+    let tooltipsToRemove = tooltips.filter((tooltip) => !tooltip.contains(event.target));
+    tooltips = tooltips.filter((tooltip) => tooltip.contains(event.target));
+    tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
+});
 
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
     function constructRowHTML(row, regExp) {
         let text = "";
-        for (let func of matchAnswerRules) {
-            let ret = func(row);
-            if (ret == null) continue;
-            if (typeof ret === "string") text = ret;
-            else {
-                text = `【题干】${ret["problem"]}<br>`;
-                for (let [k, v] of Object.entries(ret["options"])) {
-                    let line = `【选项${k}】${v}`;
-                    if (ret["answer"].includes(k)) {
-                        text += `<span class="elearning-test-answer">${line}</span><br>`;
-                    } else {
-                        text += `${line}<br>`;
-                    }
+
+        let ret = parseAnswer(row);
+        if (typeof ret === "string") text = ret;
+        else {
+            text = `【题干】${ret["problem"]}<br>`;
+            for (let [k, v] of Object.entries(ret["options"])) {
+                let line = `【选项${k}】${v}`;
+                if (ret["answer"].includes(k)) {
+                    text += `<span class="elearning-test-answer">${line}</span><br>`;
+                } else {
+                    text += `${line}<br>`;
                 }
-                text += `【答案】${ret["answer"]}`;
             }
-            break;
+            text += `【答案】${ret["answer"]}`;
         }
 
         return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
@@ -134,15 +135,11 @@ document.addEventListener("mouseup", (event) => {
     });
 });
 
-let tryMatchRow = (row, options) => {
-    let obj = null;
-    for (let func of matchAnswerRules) {
-        let ret = func(row);
-        if (ret == null || typeof ret === "string") continue;
-        obj = ret;
-        break;
-    }
-    if (obj == null) return null;
+let tryMatch = (answerRow, options) => {
+    let obj = parseAnswer(answerRow);
+    if (obj == null || typeof obj === "string") return null;
+    if (Object.entries(obj["options"]).length !== options.length) return null;
+
     let matches = options.map((option) => {
         let regExp = new RegExp(constructSearchRegex(option), "gi");
         for (let [k, v] of Object.entries(obj["options"])) {
@@ -153,32 +150,56 @@ let tryMatchRow = (row, options) => {
     if (matches.includes(null)) return null;
 
     let indices = [];
-    matches.forEach((match, idx) => { if (options["answer"].includes(match)) indices.push(idx); });
+    matches.forEach((match, idx) => { if (obj["answer"].includes(match)) indices.push(idx); });
     return indices;
 };
 
-chrome.runtime.onMessage.addListener(msg => {
-    if (msg !== "elearning-test-one-click-complete") return;
-
+let oneClickComplete = async () => {
     let questions = document.getElementsByClassName("question-panel-middle");
 
-    questions.forEach(question => {
+    let promises = [];
+    for (let question of questions) {
         let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
-        let options = question.querySelectorAll(".item-details").map(e => {
-            return e.innerText.match(/^[A-Z]\.(.+)/)[1];
-        });
+        let options = [];
+        for (let e of question.querySelectorAll(".item-details")) {
+            options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
+        };
         let inputs = question.querySelectorAll("input");
 
         let searchTerm = constructSearchRegex(desc);
-        chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+        let promise = chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response) => {
             if (response.error) {
+                return Promise.reject(response.error);
             } else {
+                let answered = false;
                 for (let result of response.results) {
-                    let indices = tryMatchRow(result.row, options);
+                    let indices = tryMatch(result.row, options);
                     if (indices == null) continue;
                     for (let idx of indices) inputs[idx].click();
+                    answered = true;
+                    break;
                 }
+                return Promise.resolve(answered ? 1 : 0);
             }
         });
+        promises.push(promise);
+    };
+
+    let array = await Promise.all(promises);
+
+    let match = array.reduce((x, y) => x + y, 0);
+    return {
+        match: match,
+        notMatch: array.length - match
+    };
+};
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request !== "elearning-test-one-click-complete") return false;
+    oneClickComplete().then((results) => {
+        sendResponse({ results: results, error: null });
+    }).catch((error) => {
+        sendResponse({ results: null, error: error });
     });
+    return true;
 });

@@ -26,10 +26,23 @@ document.getElementById("update-file-list-btn").onclick = () => {
     });
 };
 
-document.getElementById("one-click-complete-btn").onclick = () => {
-    chrome.tabs.query({}, tabs => {
-        tabs.forEach(tab => {
-            chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete");
+let oneClickCompleteBtn = document.getElementById("one-click-complete-btn");
+
+oneClickCompleteBtn.onclick = () => {
+    let element = document.getElementById("one-click-complete-result");
+    oneClickCompleteBtn.disabled = true;
+    element.innerHTML = "<p>自动答题中，请耐心等待。</p>";
+    chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
+        let tab = tabs[0];
+        chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete").then((response) => {
+            let html = "";
+            if (response.error) {
+                html = `<p>自动答题中遇到错误：${response.error}</p><p>请尝试更新题库列表。</p>`;
+            } else {
+                html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
+            }
+            element.innerHTML = html;
+            oneClickCompleteBtn.disabled = false;
         });
     });
 };
