@@ -1,6 +1,4 @@
-let button = document.getElementById("button")
-
-button.onclick = () => {
+document.getElementById("update-file-list-btn").onclick = () => {
     function constructFileListHTML(fileList) {
         let ret = "<p>搜索到题库列表：</p><ul>";
         for (let i = 0; i < fileList.length; i++) {
@@ -24,6 +22,14 @@ button.onclick = () => {
                 element.innerHTML = constructFileListHTML(fileList);
                 chrome.storage.local.set({ eLearningTestFileList: fileList });
             });
+        });
+    });
+};
+
+document.getElementById("one-click-complete-btn").onclick = () => {
+    chrome.tabs.query({}, tabs => {
+        tabs.forEach(tab => {
+            chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete");
         });
     });
 };
