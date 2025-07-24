@@ -15,12 +15,12 @@ let parseAnswerRules = [
         let problem = object["题干"];
         if (problem == null) return null;
 
-        let obj = { "problem": String(problem), "answer": ans, "options": {} };
+        let obj = { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
         for (let [k, v] of row) {
             if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
             obj["options"][k[2]] = String(v);
         }
-        if (!(new Set(ans)).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
+        if (!(new Set(obj["answer"])).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -36,13 +36,13 @@ let parseAnswerRules = [
         let problem = object["题干"];
         if (problem == null) return null;
 
-        let obj = { "problem": String(problem), "answer": ans, "options": {} };
+        let obj = { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
 
         options.split("|").forEach((opt) => {
             let c = opt.trim()[0];
             obj["options"][c] = opt.trim().substring(2);
         });
-        if (!(new Set(ans)).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
+        if (!(new Set(obj["answer"])).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -158,6 +158,11 @@ let oneClickComplete = async () => {
     let questions = document.getElementsByClassName("question-panel-middle");
 
     let promises = [];
+    let match = 0;
+
+    let ansNumElement = document.getElementsByClassName("has-answer-num")[0];
+    let ansProgressElement = document.getElementsByClassName("answer-progress")[0];
+
     for (let question of questions) {
         let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
         let options = [];
@@ -166,32 +171,36 @@ let oneClickComplete = async () => {
         };
         let inputs = question.querySelectorAll("input");
         for (let input of inputs) input.checked = false;
+        let link = document.getElementById(`no_${inputs[0].name}`);
+        link.classList.remove("done");
 
         let searchTerm = constructSearchRegex(desc);
         let promise = chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response) => {
             if (response.error) {
                 return Promise.reject(response.error);
             } else {
-                let answered = false;
                 for (let result of response.results) {
                     let indices = tryMatch(result.row, options);
                     if (indices == null) continue;
                     for (let idx of indices) inputs[idx].checked = true;
-                    answered = true;
+                    match += 1;
+                    // update progress
+                    link.classList.add("done");
+                    ansNumElement.innerText = `${match}`;
+                    ansProgressElement.style["width"] = `${100.0 * match / questions.length}%`;
                     break;
                 }
-                return Promise.resolve(answered ? 1 : 0);
+                return Promise.resolve();
             }
         });
         promises.push(promise);
     };
 
-    let array = await Promise.all(promises);
+    await Promise.all(promises);
 
-    let match = array.reduce((x, y) => x + y, 0);
     return {
         match: match,
-        notMatch: array.length - match
+        notMatch: questions.length - match
     };
 };
 
