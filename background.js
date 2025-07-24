@@ -1,4 +1,4 @@
-importScripts('xlsx.full.min.js'); // 确保在项目中包含XLSX库
+importScripts('xlsx.full.min.js');
 
 // 监听来自content_script.js的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

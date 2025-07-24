@@ -42,17 +42,18 @@ oneClickCompleteBtn.onclick = () => {
     element.innerHTML = "<p>自动答题中，请耐心等待。</p>";
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
         let tab = tabs[0];
-        chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete").then((response) => {
-            let html = "";
-            if (response.error) {
-                html = `<p>自动答题中遇到错误：${response.error}</p><p>请尝试更新题库列表。</p>`;
+        chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete", (response) => {
+            if (chrome.runtime.lastError) {
+                element.innerHTML = `<p>发送消息时遇到错误：${chrome.runtime.lastError.message}</p><p>请确认是否打开了页面。</p>`;
             } else {
-                html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
+                let html = "";
+                if (response.error) {
+                    html = `<p>自动答题中遇到错误：${response.error}</p><p>请尝试更新题库列表。</p>`;
+                } else {
+                    html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
+                }
+                element.innerHTML = html;
             }
-            element.innerHTML = html;
-            oneClickCompleteBtn.disabled = false;
-        }).catch((error) => {
-            element.innerHTML = `<p>发送消息时遇到错误：${error.stack}</p><p>请确认是否打开了页面。</p>`;
             oneClickCompleteBtn.disabled = false;
         });
     });

@@ -5,6 +5,13 @@ let constructSearchRegex = (text) => {
         .join('\\s*');
 };
 
+let isSubsetOf = (x, y) => {
+    for (let k of x.keys()) {
+        if (!y.has(k)) return false;
+    }
+    return true;
+};
+
 let parseAnswerRules = [
     (row) => {
         // 题干    选项A    选项B    选项C    选项D    答案
@@ -20,7 +27,7 @@ let parseAnswerRules = [
             if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
             obj["options"][k[2]] = String(v);
         }
-        if (!(new Set(obj["answer"])).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
+        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -42,7 +49,7 @@ let parseAnswerRules = [
             let c = opt.trim()[0];
             obj["options"][c] = opt.trim().substring(2);
         });
-        if (!(new Set(obj["answer"])).isSubsetOf(new Set(Object.keys(obj["options"])))) return null;
+        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) return null;
 
         return obj;
     },
@@ -175,23 +182,25 @@ let oneClickComplete = async () => {
         link.classList.remove("done");
 
         let searchTerm = constructSearchRegex(desc);
-        let promise = chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response) => {
-            if (response.error) {
-                return Promise.reject(response.error);
-            } else {
-                for (let result of response.results) {
-                    let indices = tryMatch(result.row, options);
-                    if (indices == null) continue;
-                    for (let idx of indices) inputs[idx].checked = true;
-                    match += 1;
-                    // update progress
-                    link.classList.add("done");
-                    ansNumElement.innerText = `${match}`;
-                    ansProgressElement.style["width"] = `${100.0 * match / questions.length}%`;
-                    break;
+        let promise = new Promise((resolve, reject) => {
+            chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+                if (response.error) {
+                    reject(response.error);
+                } else {
+                    for (let result of response.results) {
+                        let indices = tryMatch(result.row, options);
+                        if (indices == null) continue;
+                        for (let idx of indices) inputs[idx].checked = true;
+                        match += 1;
+                        // update progress
+                        link.classList.add("done");
+                        ansNumElement.innerText = `${match}`;
+                        ansProgressElement.style["width"] = `${100.0 * match / questions.length}%`;
+                        break;
+                    }
+                    resolve();
                 }
-                return Promise.resolve();
-            }
+            });
         });
         promises.push(promise);
     };
