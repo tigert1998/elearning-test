@@ -33,15 +33,20 @@ async function searchInExcel(searchTerm) {
         let results = [];
 
         // 遍历所有工作表
-        workbook.SheetNames.forEach(sheetName => {
+        for (let sheetName of workbook.SheetNames) {
             const worksheet = workbook.Sheets[sheetName];
             const sheetData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-            if (sheetData.length === 0) return;
-            let headers = sheetData[0].map((header) => header.trim());
+            if (sheetData.length === 0) continue;
+            let headers = sheetData[0];
+            if (headers.includes(undefined) || headers.includes(null))
+                return Promise.reject(new Error(`Sheet ${sheetName} in ${file} contains empty header`));
+            headers = headers.map((header) => String(header).trim());
+            if ((new Set(headers)).size != headers.length)
+                return Promise.reject(new Error(`Sheet ${sheetName} in ${file} contains duplicate headers`));
 
             for (let i = 1; i < sheetData.length; i++) {
                 let cells = sheetData[i];
-                if (cells.some((cell) => String(cell).match(regExp))) {
+                if (cells.some((cell) => cell != null && String(cell).match(regExp))) {
                     let row = headers.map((header, idx) => [header, cells[idx]]);
                     results.push({
                         rowIndex: i - 1,
@@ -51,7 +56,7 @@ async function searchInExcel(searchTerm) {
                     });
                 }
             }
-        });
+        };
 
         return results;
     }));

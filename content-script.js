@@ -82,25 +82,26 @@ document.addEventListener("mousedown", (event) => {
 
 // 监听鼠标选中事件
 document.addEventListener("mouseup", (event) => {
-    function constructRowHTML(row, regExp) {
+    function constructRowHTML(obj, regExp) {
         let text = "";
 
-        let ret = parseAnswer(row);
-        if (typeof ret === "string") text = ret;
+        if (typeof obj === "string") text = obj;
         else {
-            text = `【题干】${ret["problem"]}<br>`;
-            for (let [k, v] of Object.entries(ret["options"])) {
+            text = `【题干】${obj["problem"]}<br>`;
+            for (let [k, v] of Object.entries(obj["options"])) {
                 let line = `【选项${k}】${v}`;
-                if (ret["answer"].includes(k)) {
+                if (obj["answer"].includes(k)) {
                     text += `<span class="elearning-test-answer">${line}</span><br>`;
                 } else {
                     text += `${line}<br>`;
                 }
             }
-            text += `【答案】${ret["answer"]}`;
+            text += `【答案】${obj["answer"]}`;
         }
 
-        return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
+        if (text.match(regExp))
+            return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
+        else return null;
     }
 
     const selectedText = window.getSelection().toString().trim();
@@ -122,12 +123,16 @@ document.addEventListener("mouseup", (event) => {
             div.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
             tooltip.appendChild(div);
         } else {
+            let cellHtmls = response.results
+                .map((result) => constructRowHTML(parseAnswer(result.row), regExp))
+                .filter((html) => html != null);
+
             let numColumns = 3;
             let html = "<table>";
-            for (let i = 0; i < response.results.length; i += numColumns) {
+            for (let i = 0; i < cellHtmls.length; i += numColumns) {
                 html += "<tr>";
-                for (let j = i; j < i + numColumns && j < response.results.length; j++) {
-                    html += `<td class="elearning-test-table-cell">${constructRowHTML(response.results[j].row, regExp)}</td>`;
+                for (let j = i; j < i + numColumns && j < cellHtmls.length; j++) {
+                    html += `<td class="elearning-test-table-cell">${cellHtmls[j]}</td>`;
                 }
                 html += "</tr>";
             }
