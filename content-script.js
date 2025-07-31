@@ -12,22 +12,44 @@ let isSubsetOf = (x, y) => {
     return true;
 };
 
+let findKeys = (row, substr) => {
+    let ks = [];
+    for (let [k, v] of row) {
+        if (k.includes(substr)) ks.push(k);
+    }
+    return ks;
+};
+
 let parseAnswerRules = [
     (row) => {
         // 题干    选项A    选项B    选项C    选项D    答案
 
+        let ansKey = findKeys(row, "答案");
+        if (ansKey.length !== 1) return null;
+        let problemKey = findKeys(row, "题干");
+        if (problemKey.length !== 1) return null;
+
         let object = Object.fromEntries(row);
-        let ans = object["答案"];
+        let ans = object[ansKey[0]];
         if (ans == null) return null;
-        let problem = object["题干"];
+        let problem = object[problemKey[0]];
         if (problem == null) return null;
 
         let obj = { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
         for (let [k, v] of row) {
             if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
-            obj["options"][k[2]] = String(v);
+            obj["options"][k.substring(2).trim()] = String(v).trim();
         }
-        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) return null;
+        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) {
+            let regex = new RegExp(constructSearchRegex(obj["answer"]), "gi");
+            for (let [k, v] of Object.entries(obj["options"])) {
+                if (v.match(regex)) {
+                    obj["answer"] = k;
+                    return obj;
+                }
+            }
+            return null;
+        }
 
         return obj;
     },
@@ -35,19 +57,24 @@ let parseAnswerRules = [
         // 题干               选项              答案
         // 测试题目的题干     A-选项1|B-选项2     B
 
+        let ansKey = findKeys(row, "答案");
+        if (ansKey.length !== 1) return null;
+        let problemKey = findKeys(row, "题干");
+        if (problemKey.length !== 1) return null;
+
         let object = Object.fromEntries(row);
-        let ans = object["答案"];
+        let ans = object[ansKey[0]];
         if (ans == null) return null;
         let options = object["选项"];
         if (options == null) return null;
-        let problem = object["题干"];
+        let problem = object[problemKey[0]];
         if (problem == null) return null;
 
         let obj = { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
 
         options.split("|").forEach((opt) => {
             let c = opt.trim()[0];
-            obj["options"][c] = opt.trim().substring(2);
+            obj["options"][c] = opt.trim().substring(2).trim();
         });
         if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) return null;
 
