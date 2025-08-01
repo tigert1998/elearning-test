@@ -21,7 +21,10 @@ async function searchInExcel(searchTerm) {
         });
     });
 
-    let arrays = await Promise.all(fileList.map(async (file) => {
+    let arrays = await Promise.all(fileList.map(async (pair) => {
+        let file = pair[0];
+        let enabled = pair[1];
+        if (!enabled) return [];
         const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
         const response = await fetch(fileUrl);
 
