@@ -1,41 +1,48 @@
-class FileList {
+class CheckboxList extends HTMLElement {
+    static observedAttributes = ["list"];
+
     constructor() {
-        this.element = document.getElementById("file-list");
+        super();
 
         chrome.storage.local.get('eLearningTestFileList', (result) => {
             let list = result.eLearningTestFileList;
-            if (list != null) {
-                this.update(list);
-            }
+            this.setAttribute("list", JSON.stringify(list != null ? list : []));
         });
     }
 
-    update(list) {
-        this.list = list;
-        chrome.storage.local.set({ eLearningTestFileList: list });
-
-        let html = "<p>当前题库列表：</p>";
-        for (let i = 0; i < list.length; i++) {
-            let id = `file-${i}`;
-            html += `<div>
-<input type="checkbox" id="${id}" name="${id}" ${list[i][1] ? "checked" : ""}/>
-<label for="${id}">${list[i][0]}</label>
-</div>`;
-        }
-        this.element.innerHTML = html;
-
-        for (let i = 0; i < list.length; i++) {
-            let id = `file-${i}`;
-            document.getElementById(id).onclick = () => {
-                let list = this.list;
-                list[i][1] = !list[i][1];
-                this.update(list);
+    #updateList(list) {
+        this.shadowRoot.replaceChildren();
+        list.forEach((pair, i) => {
+            let id = `checkbox-${i}`;
+            let div = document.createElement("div");
+            div.innerHTML = `<input type="checkbox" id="${id}" ${pair[1] ? "checked" : ""}/>
+<label for="${id}">${pair[0]}</label>`;
+            div.querySelector(`#${id}`).onclick = () => {
+                let newList = list;
+                newList[i][1] = !newList[i][1];
+                this.setAttribute("list", JSON.stringify(newList));
             };
+            this.shadowRoot.appendChild(div);
+        });
+    }
+
+    connectedCallback() {
+        this.attachShadow({ mode: "open" });
+    }
+
+    attributeChangedCallback(name, oldValue, newValue) {
+        if (name === "list") {
+            let list = JSON.parse(newValue);
+            this.#updateList(list);
+            chrome.storage.local.set({ eLearningTestFileList: list });
         }
     }
 };
 
-let fileList = new FileList();
+customElements.define("checkbox-list", CheckboxList);
+
+let checkboxList = new CheckboxList();
+document.getElementById("file-list").appendChild(checkboxList);
 
 document.getElementById("update-file-list-btn").onclick = () => {
     chrome.runtime.getPackageDirectoryEntry(root => {
@@ -48,7 +55,7 @@ document.getElementById("update-file-list-btn").onclick = () => {
                         list.push([entry.name, true]);
                     }
                 });
-                fileList.update(list);
+                checkboxList.setAttribute("list", JSON.stringify(list));
             });
         });
     });
