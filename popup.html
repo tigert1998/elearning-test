@@ -7,7 +7,6 @@
     <style>
         html {
             width: 200px;
-            height: 400px;
             word-break: break-all;
         }
 
@@ -18,10 +17,15 @@
 </head>
 
 <body>
-    <div id="file-list">
-        <p>当前题库列表：</p>
-    </div>
+    <checkbox-list id="secret-mode" list-init="[[&quot;隐蔽模式&quot;, false]]"
+        chrome-storage-name="eLearningTestSecretMode"></checkbox-list>
+    <hr>
+
+    <p>当前题库列表：</p>
+    <checkbox-list id="file-list" list-init="[]" chrome-storage-name="eLearningTestFileList"></checkbox-list>
     <button type="button" id="update-file-list-btn">更新题库列表</button>
+    <hr>
+
     <div id="one-click-complete-result"></div>
     <p class="important-notice">重要提示：考试后台会记录考试开始和结束时间，请谨慎决定交卷时机。</p>
     <button type="button" id="one-click-complete-btn">一键答题</button>

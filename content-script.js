@@ -98,6 +98,16 @@ let parseAnswer = (row) => {
     }
 };
 
+let getSecretMode = async () => {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.get('eLearningTestSecretMode', (result) => {
+            let json = result.eLearningTestSecretMode;
+            if (json != null) resolve(json[0][1]);
+            else resolve(false);
+        })
+    });
+};
+
 let tooltips = [];
 
 // 点击页面其他位置，隐藏结果提示框
@@ -138,12 +148,13 @@ document.addEventListener("mouseup", (event) => {
     const regExp = new RegExp(searchTerm, 'gi');
 
     // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+    chrome.runtime.sendMessage({ searchTerm: searchTerm }, async (response) => {
         // 创建结果提示框
         const tooltip = document.createElement("div");
         tooltip.className = "elearning-test-tooltip";
         tooltip.style.top = event.pageY + "px";
         tooltip.style.left = event.pageX + "px";
+        if (await getSecretMode()) tooltip.style.opacity = "0.33";
 
         if (response.error) {
             const div = document.createElement("div");
@@ -199,8 +210,14 @@ let oneClickComplete = async () => {
     let promises = [];
     let match = 0;
 
-    let ansNumElement = document.getElementsByClassName("has-answer-num")[0];
-    let ansProgressElement = document.getElementsByClassName("answer-progress")[0];
+    let ansNumElement = document.getElementsByClassName("has-answer-num");
+    let ansProgressElement = document.getElementsByClassName("answer-progress");
+    if (ansNumElement.length <= 0 || ansProgressElement.length <= 0) return {
+        match: 0,
+        notMatch: 0
+    };
+    ansNumElement = ansNumElement[0];
+    ansProgressElement = ansProgressElement[0];
 
     for (let question of questions) {
         let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];

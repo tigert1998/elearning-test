@@ -1,19 +1,16 @@
 class CheckboxList extends HTMLElement {
-    static observedAttributes = ["list"];
+    static observedAttributes = ["list", "chrome-storage-name", "list-init"];
+
+    static numGeneratedIDs = 0;
 
     constructor() {
         super();
-
-        chrome.storage.local.get('eLearningTestFileList', (result) => {
-            let list = result.eLearningTestFileList;
-            this.setAttribute("list", JSON.stringify(list != null ? list : []));
-        });
     }
 
     #updateList(list) {
         this.shadowRoot.replaceChildren();
         list.forEach((pair, i) => {
-            let id = `checkbox-${i}`;
+            let id = `checkbox-list-id-${CheckboxList.numGeneratedIDs++}`;
             let div = document.createElement("div");
             div.innerHTML = `<input type="checkbox" id="${id}" ${pair[1] ? "checked" : ""}/>
 <label for="${id}">${pair[0]}</label>`;
@@ -34,15 +31,21 @@ class CheckboxList extends HTMLElement {
         if (name === "list") {
             let list = JSON.parse(newValue);
             this.#updateList(list);
-            chrome.storage.local.set({ eLearningTestFileList: list });
+            let chromeStorageName = this.getAttribute("chrome-storage-name");
+            chrome.storage.local.set({ [chromeStorageName]: list });
+        } else if (name === "chrome-storage-name") {
+            let chromeStorageName = newValue;
+            chrome.storage.local.get(chromeStorageName, (result) => {
+                let list = result[chromeStorageName];
+                if (list != null) this.setAttribute("list", JSON.stringify(list));
+            });
+        } else if (name === "list-init") {
+            if (!this.hasAttribute("list")) this.setAttribute("list", newValue);
         }
     }
 };
 
 customElements.define("checkbox-list", CheckboxList);
-
-let checkboxList = new CheckboxList();
-document.getElementById("file-list").appendChild(checkboxList);
 
 document.getElementById("update-file-list-btn").onclick = () => {
     chrome.runtime.getPackageDirectoryEntry(root => {
@@ -55,7 +58,7 @@ document.getElementById("update-file-list-btn").onclick = () => {
                         list.push([entry.name, true]);
                     }
                 });
-                checkboxList.setAttribute("list", JSON.stringify(list));
+                document.getElementById("file-list").setAttribute("list", JSON.stringify(list));
             });
         });
     });
