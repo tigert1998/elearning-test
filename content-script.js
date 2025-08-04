@@ -209,6 +209,7 @@ let oneClickComplete = async () => {
 
     let promises = [];
     let match = 0;
+    let numAnswered = 0;
 
     let ansNumElement = document.getElementsByClassName("has-answer-num");
     let ansProgressElement = document.getElementsByClassName("answer-progress");
@@ -226,9 +227,7 @@ let oneClickComplete = async () => {
             options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
         };
         let inputs = question.querySelectorAll("input");
-        for (let input of inputs) input.checked = false;
         let link = document.getElementById(`no_${inputs[0].name}`);
-        link.classList.remove("done");
 
         let searchTerm = constructSearchRegex(desc);
         let promise = new Promise((resolve, reject) => {
@@ -239,14 +238,21 @@ let oneClickComplete = async () => {
                     for (let result of response.results) {
                         let indices = tryMatch(result.row, options);
                         if (indices == null) continue;
-                        for (let idx of indices) inputs[idx].checked = true;
                         match += 1;
-                        // update progress
-                        link.classList.add("done");
-                        ansNumElement.innerText = `${match}`;
-                        ansProgressElement.style["width"] = `${100.0 * match / questions.length}%`;
+                        for (let input of inputs) input.checked = false;
+                        for (let idx of indices) inputs[idx].checked = true;
                         break;
                     }
+
+                    // update progress
+                    for (let input of inputs) if (input.checked) {
+                        numAnswered += 1;
+                        ansNumElement.innerText = `${numAnswered}`;
+                        ansProgressElement.style["width"] = `${100.0 * numAnswered / questions.length}%`;
+                        link.classList.add("done");
+                        break;
+                    }
+
                     resolve();
                 }
             });
