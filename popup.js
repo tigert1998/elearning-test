@@ -71,7 +71,7 @@ oneClickCompleteBtn.onclick = () => {
         let tab = tabs[0];
         chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete", (response) => {
             if (chrome.runtime.lastError) {
-                element.innerHTML = `<p>发送消息时遇到错误：${chrome.runtime.lastError.message}</p><p>请确认是否打开了页面。</p>`;
+                element.innerHTML = `<p>发送消息时遇到错误：${chrome.runtime.lastError.message}</p><p>请确认是否打开了答题页面，或尝试重启浏览器。</p>`;
             } else {
                 let html = "";
                 if (response.error) {
