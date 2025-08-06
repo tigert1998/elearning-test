@@ -9,7 +9,8 @@
         "<all_urls>"
       ],
       "js": [
-        "content-script.js"
+        "content-script.js",
+        "marked.umd.js"
       ],
       "css": [
         "styles.css"

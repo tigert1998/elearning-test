@@ -2,15 +2,43 @@ importScripts('xlsx.full.min.js');
 
 // 监听来自content_script.js的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    searchInExcel(request.searchTerm).then((results) => {
+    let promise = null;
+    if (request.queryType === "local") promise = searchInExcel(request.searchTerm);
+    else if (request.queryType === "llm") promise = sendLLMRequest(request.text);
+    if (promise == null) return false;
+
+    promise.then((results) => {
         sendResponse({ results: results, error: null });
     }).catch((error) => {
         sendResponse({ results: null, error: error.stack });
     });
+
     return true; // 保持连接开放以支持异步响应
 });
 
-async function searchInExcel(searchTerm) {
+let sendLLMRequest = async (text) => {
+    let fileUrl = chrome.runtime.getURL("llm-config.json");
+    let response = await fetch(fileUrl);
+    let llmConfig = await response.json();
+    let options = {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${llmConfig.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            model: llmConfig.model,
+            messages: [
+                {
+                    role: "user",
+                    content: `对以下问题进行简要解答：\n${text}`
+                }
+            ]
+        })
+    };
+    response = await fetch(llmConfig.url, options);
+    let data = await response.json();
+    return data.choices[0].message.content;
+};
+
+let searchInExcel = async (searchTerm) => {
     let regExp = new RegExp(searchTerm, "gi");
 
     let fileList = await new Promise((resolve, reject) => {

@@ -98,12 +98,12 @@ let parseAnswer = (row) => {
     }
 };
 
-let getSecretMode = async () => {
+let getModes = async () => {
     return new Promise((resolve, reject) => {
-        chrome.storage.local.get('eLearningTestSecretMode', (result) => {
-            let json = result.eLearningTestSecretMode;
-            if (json != null) resolve(json[0][1]);
-            else resolve(false);
+        chrome.storage.local.get('eLearningTestModes', (result) => {
+            let json = result.eLearningTestModes;
+            if (json != null) resolve({ secret: json[0][1], llm: json[1][1] });
+            else resolve({ secret: false, llm: false });
         })
     });
 };
@@ -117,52 +117,42 @@ document.addEventListener("mousedown", (event) => {
     tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
 });
 
-// 监听鼠标选中事件
-document.addEventListener("mouseup", (event) => {
-    function constructRowHTML(obj, regExp) {
-        let text = "";
+let buildQuestionHTML = (obj, regExp) => {
+    let text = "";
 
-        if (typeof obj === "string") text = obj;
-        else {
-            text = `【题干】${obj["problem"]}<br>`;
-            for (let [k, v] of Object.entries(obj["options"])) {
-                let line = `【选项${k}】${v}`;
-                if (obj["answer"].includes(k)) {
-                    text += `<span class="elearning-test-answer">${line}</span><br>`;
-                } else {
-                    text += `${line}<br>`;
-                }
+    if (typeof obj === "string") text = obj;
+    else {
+        text = `【题干】${obj["problem"]}<br>`;
+        for (let [k, v] of Object.entries(obj["options"])) {
+            let line = `【选项${k}】${v}`;
+            if (obj["answer"].includes(k)) {
+                text += `<span class="elearning-test-answer">${line}</span><br>`;
+            } else {
+                text += `${line}<br>`;
             }
-            text += `【答案】${obj["answer"]}`;
         }
-
-        if (text.match(regExp))
-            return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
-        else return null;
+        text += `【答案】${obj["answer"]}`;
     }
 
-    const selectedText = window.getSelection().toString().trim();
-    if (selectedText === "") return;
+    if (text.match(regExp))
+        return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
+    else return null;
+}
+
+let searchQuestions = (selectedText, tooltip) => {
+    tooltip.innerHTML = "<p>正在检索题库中，请耐心等待。</p>";
+
     let searchTerm = constructSearchRegex(selectedText);
     // emoji is not supported yet
     const regExp = new RegExp(searchTerm, 'gi');
 
     // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ searchTerm: searchTerm }, async (response) => {
-        // 创建结果提示框
-        const tooltip = document.createElement("div");
-        tooltip.className = "elearning-test-tooltip";
-        tooltip.style.top = event.pageY + "px";
-        tooltip.style.left = event.pageX + "px";
-        if (await getSecretMode()) tooltip.style.opacity = "0.33";
-
+    chrome.runtime.sendMessage({ queryType: "local", searchTerm: searchTerm }, (response) => {
         if (response.error) {
-            const div = document.createElement("div");
-            div.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
-            tooltip.appendChild(div);
+            tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
             let cellHtmls = response.results
-                .map((result) => constructRowHTML(parseAnswer(result.row), regExp))
+                .map((result) => buildQuestionHTML(parseAnswer(result.row), regExp))
                 .filter((html) => html != null);
 
             let numColumns = 3;
@@ -177,12 +167,39 @@ document.addEventListener("mouseup", (event) => {
             html += "</table>";
             tooltip.innerHTML = html;
         }
-
-        // 添加结果提示框到页面中
-        document.body.appendChild(tooltip);
-
-        tooltips.push(tooltip);
     });
+};
+
+let askLLM = (selectedText, tooltip) => {
+    tooltip.innerHTML = "<p>正在查询LLM中，请耐心等待。</p>";
+
+    chrome.runtime.sendMessage({ queryType: "llm", text: selectedText }, (response) => {
+        if (response.error) {
+            tooltip.innerHTML = `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
+        } else {
+            tooltip.innerHTML = marked.parse(response.results);
+        }
+    });
+};
+
+document.addEventListener("mouseup", async (event) => {
+    const selectedText = window.getSelection().toString().trim();
+    if (selectedText === "") return;
+
+    let modes = await getModes();
+    const tooltip = document.createElement("div");
+    tooltip.className = "elearning-test-tooltip";
+    tooltip.style.top = event.pageY + "px";
+    tooltip.style.left = event.pageX + "px";
+    if (modes.secret) tooltip.style.opacity = "0.33";
+    document.body.appendChild(tooltip);
+    tooltips.push(tooltip);
+
+    if (modes.llm) {
+        askLLM(selectedText, tooltip);
+    } else {
+        searchQuestions(selectedText, tooltip);
+    }
 });
 
 let tryMatch = (answerRow, options) => {
