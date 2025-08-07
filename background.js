@@ -2,12 +2,7 @@ importScripts('xlsx.full.min.js');
 
 // 监听来自content_script.js的消息
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    let promise = null;
-    if (request.queryType === "local") promise = searchInExcel(request.searchTerm);
-    else if (request.queryType === "llm") promise = sendLLMRequest(request.text);
-    if (promise == null) return false;
-
-    promise.then((results) => {
+    searchInExcel(request.searchTerm).then((results) => {
         sendResponse({ results: results, error: null });
     }).catch((error) => {
         sendResponse({ results: null, error: error.stack });
@@ -16,7 +11,19 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true; // 保持连接开放以支持异步响应
 });
 
-let sendLLMRequest = async (text) => {
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === "llm") {
+        port.onMessage.addListener((msg) => {
+            sendStreamingLLMRequest(msg.text, (text) => {
+                port.postMessage({ text: text, error: null });
+            }).catch((error) => {
+                port.postMessage({ text: null, error: error.stack });
+            });
+        });
+    }
+});
+
+let sendStreamingLLMRequest = async (text, callback) => {
     let fileUrl = chrome.runtime.getURL("llm-config.json");
     let response = await fetch(fileUrl);
     let llmConfig = await response.json();
@@ -30,12 +37,33 @@ let sendLLMRequest = async (text) => {
                     role: "user",
                     content: `对以下问题进行简要解答：\n${text}`
                 }
-            ]
+            ],
+            stream: true
         })
     };
     response = await fetch(llmConfig.url, options);
-    let data = await response.json();
-    return data.choices[0].message.content;
+
+    if (!response.ok) throw new Error(`HTTP error with status: ${response.status}`);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            const message = line.replace(/^data: /, '');
+            if (message === "[DONE]") return;
+
+            const parsed = JSON.parse(message);
+            const content = parsed.choices[0]?.delta?.content || '';
+            if (content.length > 0) callback(content);
+        }
+    }
 };
 
 let searchInExcel = async (searchTerm) => {

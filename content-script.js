@@ -147,7 +147,7 @@ let searchQuestions = (selectedText, tooltip) => {
     const regExp = new RegExp(searchTerm, 'gi');
 
     // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ queryType: "local", searchTerm: searchTerm }, (response) => {
+    chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
         if (response.error) {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
@@ -173,11 +173,15 @@ let searchQuestions = (selectedText, tooltip) => {
 let askLLM = (selectedText, tooltip) => {
     tooltip.innerHTML = "<p>正在查询LLM中，请耐心等待。</p>";
 
-    chrome.runtime.sendMessage({ queryType: "llm", text: selectedText }, (response) => {
+    let port = chrome.runtime.connect({ name: "llm" });
+    let content = "";
+    port.postMessage({ text: selectedText });
+    port.onMessage.addListener((response) => {
         if (response.error) {
-            tooltip.innerHTML = `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
+            tooltip.innerHTML = marked.parse(content) + `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
         } else {
-            tooltip.innerHTML = marked.parse(response.results);
+            content += response.text;
+            tooltip.innerHTML = marked.parse(content);
         }
     });
 };
