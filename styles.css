@@ -18,3 +18,15 @@
     padding: 5px;
     z-index: 9999;
 }
+
+.elearning-test-llm-think {
+    background-color: #FFFBF0;
+}
+
+.elearning-test-llm-toggle {
+    background-color: #008CBA;
+    border: none;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+}

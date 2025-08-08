@@ -14,10 +14,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === "llm") {
         port.onMessage.addListener((msg) => {
-            sendStreamingLLMRequest(msg.text, (text) => {
-                port.postMessage({ text: text, error: null });
+            sendStreamingLLMRequest(msg.text, (reasoningContent, content) => {
+                port.postMessage({ reasoningContent, content, error: null });
             }).catch((error) => {
-                port.postMessage({ text: null, error: error.stack });
+                port.postMessage({ reasoningContent: null, content: null, error: error.stack });
             });
         });
     }
@@ -35,7 +35,7 @@ let sendStreamingLLMRequest = async (text, callback) => {
             messages: [
                 {
                     role: "user",
-                    content: `对以下问题进行简要解答：\n${text}`
+                    content: `使用中文对以下问题进行简要解答：\n${text}`
                 }
             ],
             stream: true
@@ -60,8 +60,9 @@ let sendStreamingLLMRequest = async (text, callback) => {
             if (message === "[DONE]") return;
 
             const parsed = JSON.parse(message);
+            const reasoningContent = parsed.choices[0]?.delta?.reasoning_content || '';
             const content = parsed.choices[0]?.delta?.content || '';
-            if (content.length > 0) callback(content);
+            if (reasoningContent.length > 0 || content.length > 0) callback(reasoningContent, content);
         }
     }
 };
