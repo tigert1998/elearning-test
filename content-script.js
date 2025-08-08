@@ -170,24 +170,71 @@ let searchQuestions = (selectedText, tooltip) => {
     });
 };
 
+class LLMAnswerCard {
+    constructor() {
+        this.thinkOpened = false;
+        this.root = document.createElement("div");
+        this.root.innerHTML = `<button>思考过程</button><div class="elearning-test-llm-think"></div><div class="elearning-test-llm-answer"></div>`;
+
+        this.toggle = this.root.querySelector("button");
+        this.think = this.root.querySelector(".elearning-test-llm-think");
+        this.answer = this.root.querySelector(".elearning-test-llm-answer");
+
+        this.think.style.display = this.thinkOpened ? "block" : "none";
+        this.toggle.onclick = () => {
+            this.think.style.display = this.thinkOpened ? "none" : "block";
+            this.thinkOpened = !this.thinkOpened;
+        };
+    }
+
+    set reasoningContent(text) {
+        if (text.length > 0) {
+            this.toggle.style.display = "block";
+            this.think.innerHTML = marked.parse(text);
+        } else {
+            this.toggle.style.display = "none";
+            this.think.innerHTML = "";
+        }
+    }
+
+    set content(text) {
+        this.answer.innerHTML = marked.parse(text);
+    }
+};
+
 let askLLM = (selectedText, tooltip) => {
     tooltip.innerHTML = "<p>正在查询LLM中，请耐心等待。</p>";
 
     let port = chrome.runtime.connect({ name: "llm" });
+    let reasoningContent = "";
     let content = "";
+    let llmAnswerCard = new LLMAnswerCard();
+    let cardAttached = false;
     port.postMessage({ text: selectedText });
     port.onMessage.addListener((response) => {
         if (response.error) {
-            tooltip.innerHTML = marked.parse(content) + `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
+            let html = `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
+            if (cardAttached) tooltip.innerHTML += html;
+            else tooltip.innerHTML = html;
         } else {
-            content += response.text;
-            tooltip.innerHTML = marked.parse(content);
+            reasoningContent += response.reasoningContent;
+            content += response.content;
+            if (!cardAttached) {
+                cardAttached = true;
+                tooltip.replaceChildren(llmAnswerCard.root);
+            }
+            llmAnswerCard.reasoningContent = reasoningContent;
+            llmAnswerCard.content = content;
         }
     });
 };
 
 document.addEventListener("mouseup", async (event) => {
-    const selectedText = window.getSelection().toString().trim();
+    let selectedText = await new Promise(resolve => {
+        setTimeout(() => {
+            resolve(window.getSelection().toString().trim());
+        }, 0);
+    });
     if (selectedText === "") return;
 
     let modes = await getModes();
