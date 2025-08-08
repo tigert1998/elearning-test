@@ -170,19 +170,24 @@ let searchQuestions = (selectedText, tooltip) => {
     });
 };
 
+// web component is not allowed in content script
 class LLMAnswerCard {
     constructor() {
-        this.thinkOpened = false;
+        this.thinkOpened = true;
         this.root = document.createElement("div");
-        this.root.innerHTML = `<button>思考过程</button><div class="elearning-test-llm-think"></div><div class="elearning-test-llm-answer"></div>`;
+        this.root.innerHTML = `<button class="elearning-test-llm-toggle"></button>
+<div class="elearning-test-llm-think"></div>
+<div class="elearning-test-llm-answer"></div>`;
 
         this.toggle = this.root.querySelector("button");
         this.think = this.root.querySelector(".elearning-test-llm-think");
         this.answer = this.root.querySelector(".elearning-test-llm-answer");
 
         this.think.style.display = this.thinkOpened ? "block" : "none";
+        this.toggle.innerText = this.thinkOpened ? "折叠思考过程" : "展开思考过程";
         this.toggle.onclick = () => {
             this.think.style.display = this.thinkOpened ? "none" : "block";
+            this.toggle.innerText = this.thinkOpened ? "展开思考过程" : "折叠思考过程";
             this.thinkOpened = !this.thinkOpened;
         };
     }
@@ -230,6 +235,7 @@ let askLLM = (selectedText, tooltip) => {
 };
 
 document.addEventListener("mouseup", async (event) => {
+    if (tooltips.some((tooltip) => tooltip.contains(event.target))) return;
     let selectedText = await new Promise(resolve => {
         setTimeout(() => {
             resolve(window.getSelection().toString().trim());

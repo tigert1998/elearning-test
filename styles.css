@@ -20,5 +20,13 @@
 }
 
 .elearning-test-llm-think {
-    background-color: #d3d3d3;
+    background-color: #FFFBF0;
+}
+
+.elearning-test-llm-toggle {
+    background-color: #008CBA;
+    border: none;
+    color: white;
+    text-align: center;
+    text-decoration: none;
 }
