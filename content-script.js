@@ -192,10 +192,16 @@ class LLMAnswerCard {
         };
     }
 
+    static renderMarkdownAndMath(e, text) {
+        e.innerHTML = text;
+        renderMathInElement(e, { throwOnError: false });
+        e.innerHTML = marked.parse(e.innerHTML);
+    }
+
     set reasoningContent(text) {
         if (text.length > 0) {
             this.toggle.style.display = "block";
-            this.think.innerHTML = marked.parse(text);
+            LLMAnswerCard.renderMarkdownAndMath(this.think, text);
         } else {
             this.toggle.style.display = "none";
             this.think.innerHTML = "";
@@ -203,7 +209,7 @@ class LLMAnswerCard {
     }
 
     set content(text) {
-        this.answer.innerHTML = marked.parse(text);
+        LLMAnswerCard.renderMarkdownAndMath(this.answer, text);
     }
 };
 

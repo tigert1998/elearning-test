@@ -10,10 +10,13 @@
       ],
       "js": [
         "content-script.js",
-        "marked.umd.js"
+        "marked.umd.js",
+        "katex/katex.min.js",
+        "katex/contrib/auto-render.min.js"
       ],
       "css": [
-        "styles.css"
+        "styles.css",
+        "katex/katex.min.patched.css"
       ],
       "run_at": "document_end"
     },
@@ -49,7 +52,8 @@
     {
       "resources": [
         "tiku/*",
-        "injected-script.js"
+        "injected-script.js",
+        "katex/fonts/*"
       ],
       "matches": [
         "<all_urls>"
