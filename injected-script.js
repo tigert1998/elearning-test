@@ -6,7 +6,7 @@ window.addEventListener("load", (event) => {
     window.onblur = null;
 
     // 禁止阻止复制、粘贴、剪切弹窗
-    if (typeof $ !== "undefined" && typeof $.fn?.jquery === "string") {
+    if (typeof $ !== "undefined" && typeof $?.fn?.jquery === "string") {
         let version = $.fn.jquery.split(".").map((s) => parseInt(s, 10));
         if (version[0] <= 0 || (version[0] === 1 && version[1] <= 6)) {
             $("body").unbind("copy");
