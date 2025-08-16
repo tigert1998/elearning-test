@@ -120,23 +120,32 @@ document.addEventListener("mousedown", (event) => {
 let buildQuestionHTML = (obj, regExp) => {
     let text = "";
 
-    if (typeof obj === "string") text = obj;
+    let valid = false;
+    let matchRegExp = (text) => {
+        if (text.match(regExp)) {
+            valid = true;
+            return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
+        } else {
+            return text;
+        }
+    };
+
+    if (typeof obj === "string") text = matchRegExp(obj);
     else {
-        text = `【题干】${obj["problem"]}<br>`;
+        text = `【题干】${matchRegExp(obj["problem"])}<br>`;
         for (let [k, v] of Object.entries(obj["options"])) {
-            let line = `【选项${k}】${v}`;
+            let line = `【选项${k}】${matchRegExp(v)}`;
             if (obj["answer"].includes(k)) {
                 text += `<span class="elearning-test-answer">${line}</span><br>`;
             } else {
                 text += `${line}<br>`;
             }
         }
-        text += `【答案】${obj["answer"]}`;
+        text += `【答案】${matchRegExp(obj["answer"])}`;
     }
 
-    if (text.match(regExp))
-        return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
-    else return null;
+    if (valid) return text;
+    return null;
 }
 
 let searchQuestions = (selectedText, tooltip) => {
