@@ -193,9 +193,15 @@ class LLMAnswerCard {
     }
 
     static renderMarkdownAndMath(e, text) {
+        let decodeHTML = (html) => {
+            let e = document.createElement("textarea");
+            e.innerHTML = html;
+            return e.value;
+        };
+
         e.innerHTML = text;
         renderMathInElement(e, { throwOnError: false });
-        e.innerHTML = marked.parse(e.innerHTML);
+        e.innerHTML = marked.parse(decodeHTML(e.innerHTML));
     }
 
     set reasoningContent(text) {
