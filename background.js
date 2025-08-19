@@ -23,10 +23,7 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 });
 
-let sendStreamingLLMRequest = async (text, callback) => {
-    let fileUrl = chrome.runtime.getURL("llm-config.json");
-    let response = await fetch(fileUrl);
-    let llmConfig = await response.json();
+let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
     let options = {
         method: 'POST',
         headers: { Authorization: `Bearer ${llmConfig.token}`, 'Content-Type': 'application/json' },
@@ -41,7 +38,7 @@ let sendStreamingLLMRequest = async (text, callback) => {
             stream: true
         })
     };
-    response = await fetch(llmConfig.url, options);
+    let response = await fetch(llmConfig.url, options);
 
     if (!response.ok) throw new Error(`HTTP error with status: ${response.status}`);
 
@@ -64,6 +61,65 @@ let sendStreamingLLMRequest = async (text, callback) => {
             const content = parsed.choices[0]?.delta?.content || '';
             if (reasoningContent.length > 0 || content.length > 0) callback(reasoningContent, content);
         }
+    }
+};
+
+let sendStreamingLLMRequestBailian = async (llmConfig, text, callback) => {
+    let options = {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${llmConfig.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            agentCode: llmConfig.agent_code,
+            agentVersion: llmConfig.agent_version
+        })
+    };
+    let response = await fetch(llmConfig.create_session_url, options);
+    if (!response.ok) throw new Error(`HTTP error to visit ${llmConfig.create_session_url} with status: ${response.status}`);
+    let uniqueCode = (await response.json())["data"]["uniqueCode"];
+
+    options = {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${llmConfig.key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            stream: true,
+            delta: true,
+            sessionId: uniqueCode,
+            message: { "text": text }
+        })
+    };
+    response = await fetch(llmConfig.run_url, options);
+    if (!response.ok) throw new Error(`HTTP error to visit ${llmConfig.run_url} with status: ${response.status}`);
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            const message = line.replace(/^data:/, '');
+            const parsed = JSON.parse(message);
+            if (parsed.object === "complete") return;
+
+            const reasoningContent = ''; // TODO: fixme
+            const content = parsed.content[0]?.text?.value || '';
+            if (reasoningContent.length > 0 || content.length > 0) callback(reasoningContent, content);
+        }
+    }
+};
+
+let sendStreamingLLMRequest = async (text, callback) => {
+    let fileUrl = chrome.runtime.getURL("llm-config.json");
+    let response = await fetch(fileUrl);
+    let llmConfig = await response.json();
+    if (llmConfig.type === "openai") {
+        await sendStreamingLLMRequestOpenAI(llmConfig.openai, text, callback);
+    } else if (llmConfig.type === "bailian") {
+        await sendStreamingLLMRequestBailian(llmConfig.bailian, text, callback);
     }
 };
 
