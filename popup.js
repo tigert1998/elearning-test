@@ -77,11 +77,13 @@ oneClickCompleteBtn.onclick = () => {
                 element.innerHTML = `<p>发送消息时遇到错误：${chrome.runtime.lastError.message}</p><p>请确认是否打开了答题页面，或尝试重启浏览器。</p>`;
             } else {
                 let html = "";
-                if (response.error) {
-                    html = `<p>自动答题中遇到错误：${response.error}</p><p>请尝试更新题库列表。</p>`;
-                } else {
-                    html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
+                html = `<p>匹配题目数：${response.results.match}</p><p>未匹配题目数：${response.results.notMatch}</p>`;
+                if (response.results.errors.length > 0) {
+                    html += "<p>如遇大量错误，请检查题库列表是否更新。</p>";
                 }
+                response.results.errors.forEach((error) => {
+                    html += `<p>匹配第${error.index}题时遇到错误：${error.reason}</p>`;
+                });
                 element.innerHTML = html;
             }
             oneClickCompleteBtn.disabled = false;

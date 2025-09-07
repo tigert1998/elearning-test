@@ -310,25 +310,27 @@ let oneClickComplete = async () => {
     let ansProgressElement = document.getElementsByClassName("answer-progress");
     if (ansNumElement.length <= 0 || ansProgressElement.length <= 0) return {
         match: 0,
-        notMatch: 0
+        notMatch: 0,
+        errors: []
     };
     ansNumElement = ansNumElement[0];
     ansProgressElement = ansProgressElement[0];
 
     for (let question of questions) {
-        let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
-        let options = [];
-        for (let e of question.querySelectorAll(".item-details")) {
-            options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
-        };
-        let inputs = question.querySelectorAll("input");
-        let link = document.getElementById(`no_${inputs[0].name}`);
-
-        let searchTerm = constructSearchRegex(desc);
         let promise = new Promise((resolve, reject) => {
+            let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
+            let options = [];
+            for (let e of question.querySelectorAll(".item-details")) {
+                options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
+            };
+            let inputs = question.querySelectorAll("input");
+            let link = document.getElementById(`no_${inputs[0].name}`);
+
+            let searchTerm = constructSearchRegex(desc);
+
             chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
                 if (response.error) {
-                    reject(response.error);
+                    reject(new Error(response.error));
                 } else {
                     for (let result of response.results) {
                         let indices = tryMatch(result.row, options);
@@ -355,20 +357,25 @@ let oneClickComplete = async () => {
         promises.push(promise);
     };
 
-    await Promise.all(promises);
+    let results = await Promise.allSettled(promises);
+    let errors = [];
+    results.forEach((result, index) => {
+        if (result.status === "rejected") {
+            errors.push({ index: index + 1, reason: result.reason.stack });
+        }
+    });
 
     return {
         match: match,
-        notMatch: questions.length - match
+        notMatch: questions.length - match,
+        errors: errors
     };
 };
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request !== "elearning-test-one-click-complete") return false;
     oneClickComplete().then((results) => {
-        sendResponse({ results: results, error: null });
-    }).catch((error) => {
-        sendResponse({ results: null, error: error });
-    });
+        sendResponse({ results: results });
+    })
     return true;
 });
