@@ -108,6 +108,15 @@ let getModes = async () => {
     });
 };
 
+document.addEventListener("click", async (event) => {
+    let parent = event.target.parentNode;
+    if (!parent.classList.contains("question-steam")) return;
+    let question = parent.parentNode;
+    if (!question.classList.contains("question-panel-middle")) return;
+
+    await fillInQuestion(question, () => { });
+});
+
 let tooltips = [];
 
 // 点击页面其他位置，隐藏结果提示框
@@ -297,12 +306,65 @@ let tryMatch = (answerRow, options) => {
     return indices;
 };
 
+let fillInQuestion = async (question, callback) => {
+    let ansNumElement = document.getElementsByClassName("has-answer-num");
+    let totalElement = document.getElementsByClassName("total-answer-num");
+    let ansProgressElement = document.getElementsByClassName("answer-progress");
+    if (ansNumElement.length <= 0 || ansProgressElement.length <= 0 || totalElement.length <= 0)
+        throw new Error("Progress bar is not found");
+    ansNumElement = ansNumElement[0];
+    ansProgressElement = ansProgressElement[0];
+    let totalQuestions = parseInt(totalElement[0].innerText);
+
+    await new Promise((resolve, reject) => {
+        let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
+        let options = [];
+        for (let e of question.querySelectorAll(".item-details")) {
+            options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
+        };
+        let inputs = question.querySelectorAll("input");
+        let link = document.getElementById(`no_${inputs[0].name}`);
+
+        let searchTerm = constructSearchRegex(desc);
+
+        chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
+            if (response.error) {
+                reject(new Error(response.error));
+            } else {
+                let alreadyChecked = false;
+
+                for (let result of response.results) {
+                    let indices = tryMatch(result.row, options);
+                    if (indices == null) continue;
+                    for (let input of inputs) {
+                        alreadyChecked |= input.checked;
+                        input.checked = false;
+                    }
+                    for (let idx of indices) inputs[idx].checked = true;
+                    callback();
+                    break;
+                }
+
+                // update progress
+                for (let input of inputs) if (input.checked) {
+                    let numAnswered = parseInt(ansNumElement.innerText) + (alreadyChecked ? 0 : 1);
+                    ansNumElement.innerText = `${numAnswered}`;
+                    ansProgressElement.style["width"] = `${100.0 * numAnswered / totalQuestions}%`;
+                    link.classList.add("done");
+                    break;
+                }
+
+                resolve();
+            }
+        });
+    });
+}
+
 let oneClickComplete = async () => {
     let questions = document.getElementsByClassName("question-panel-middle");
 
     let promises = [];
     let match = 0;
-    let numAnswered = 0;
 
     let ansNumElement = document.getElementsByClassName("has-answer-num");
     let ansProgressElement = document.getElementsByClassName("answer-progress");
@@ -311,55 +373,16 @@ let oneClickComplete = async () => {
         notMatch: 0,
         errors: []
     };
-    ansNumElement = ansNumElement[0];
-    ansProgressElement = ansProgressElement[0];
 
     for (let question of questions) {
-        let promise = new Promise((resolve, reject) => {
-            let desc = question.querySelector(".question-steam > span:last-child").innerText.match(/(.+)（.+）$/)[1];
-            let options = [];
-            for (let e of question.querySelectorAll(".item-details")) {
-                options.push(e.innerText.match(/^[A-Z]\.(.+)/)[1]);
-            };
-            let inputs = question.querySelectorAll("input");
-            let link = document.getElementById(`no_${inputs[0].name}`);
-
-            let searchTerm = constructSearchRegex(desc);
-
-            chrome.runtime.sendMessage({ searchTerm: searchTerm }, (response) => {
-                if (response.error) {
-                    reject(new Error(response.error));
-                } else {
-                    for (let result of response.results) {
-                        let indices = tryMatch(result.row, options);
-                        if (indices == null) continue;
-                        match += 1;
-                        for (let input of inputs) input.checked = false;
-                        for (let idx of indices) inputs[idx].checked = true;
-                        break;
-                    }
-
-                    // update progress
-                    for (let input of inputs) if (input.checked) {
-                        numAnswered += 1;
-                        ansNumElement.innerText = `${numAnswered}`;
-                        ansProgressElement.style["width"] = `${100.0 * numAnswered / questions.length}%`;
-                        link.classList.add("done");
-                        break;
-                    }
-
-                    resolve();
-                }
-            });
-        });
-        promises.push(promise);
+        promises.push(fillInQuestion(question, () => { match += 1; }));
     };
 
     let results = await Promise.allSettled(promises);
     let errors = [];
     results.forEach((result, index) => {
         if (result.status === "rejected") {
-            errors.push({ index: index + 1, reason: result.reason.stack });
+            errors.push({ index, reason: result.reason.stack });
         }
     });
 

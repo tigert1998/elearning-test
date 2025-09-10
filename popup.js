@@ -82,7 +82,7 @@ oneClickCompleteBtn.onclick = () => {
                     html += "<p>如遇大量错误，请检查题库列表是否更新。</p>";
                 }
                 response.results.errors.forEach((error) => {
-                    html += `<p>匹配第${error.index}题时遇到错误：${error.reason}</p>`;
+                    html += `<p>匹配第${error.index + 1}题时遇到错误：${error.reason}</p>`;
                 });
                 element.innerHTML = html;
             }
