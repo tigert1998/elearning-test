@@ -102,8 +102,8 @@ let getModes = async () => {
     return new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestModes', (result) => {
             let json = result.eLearningTestModes;
-            if (json != null) resolve({ secret: json[0][1], llm: json[1][1] });
-            else resolve({ secret: false, llm: false });
+            if (json != null) resolve({ enabled: json[0][1], secret: json[1][1], llm: json[2][1] });
+            else resolve({ enabled: true, secret: false, llm: false });
         })
     });
 };
@@ -261,6 +261,8 @@ document.addEventListener("mouseup", async (event) => {
     if (selectedText === "") return;
 
     let modes = await getModes();
+    if (!modes.enabled) return;
+
     const tooltip = document.createElement("div");
     tooltip.className = "elearning-test-tooltip";
     tooltip.style.top = event.pageY + "px";
