@@ -21,12 +21,22 @@
 
 ### 大模型模式
 
-勾选后，插件会调用大模型查询框选的问题。大模型要求使用标准OpenAI接口，其配置文件（`llm-config.json`）格式如下：
+勾选后，插件会调用大模型查询框选的问题。大模型要求使用标准OpenAI或公司内百炼平台接口，其配置文件（`llm-config.json`）格式如下，其中`type`写`openai`则使用OpenAI格式的模型调用，写`bailian`则进行公司内网百炼平台格式调用：
 
 ```json
 {
-    "url": "大模型调用地址",
-    "token": "密钥",
-    "model": "模型名字"
+    "type": "openai",
+    "openai": {
+        "url": "OpenAI格式的大模型调用地址",
+        "token": "调用密钥",
+        "model": "模型名称"
+    },
+    "bailian": {
+        "create_session_url": "公司内百炼的创建session接口地址",
+        "run_url": "公司内百炼的运行接口地址",
+        "key": "百炼平台个人密钥",
+        "agent_code": "百炼智能体编号",
+        "agent_version": "百炼智能体版本代码"
+    }
 }
 ```
