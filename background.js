@@ -23,10 +23,33 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 });
 
+let parseThinkTags = (reasoningContent, content) => {
+    // parse <think> and </think> tags
+    if (reasoningContent.length > 0) {
+        return { reasoningContent, content };
+    }
+    let match = content.match(/<think>(.*)<\/think>(.*)/s);
+    if (match) {
+        reasoningContent = match[1];
+        content = match[2];
+    } else {
+        let match = content.match(/<think>(.*)/s);
+        if (match) {
+            reasoningContent = match[1];
+            content = "";
+        }
+    }
+    return { reasoningContent, content };
+}
+
 let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
+    let headers = { 'Content-Type': 'application/json' };
+    if (llmConfig.token) {
+        headers.Authorization = `Bearer ${llmConfig.token}`;
+    }
     let options = {
         method: 'POST',
-        headers: { Authorization: `Bearer ${llmConfig.token}`, 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
             model: llmConfig.model,
             messages: [
@@ -45,6 +68,9 @@ let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
 
+    let reasoningContent = "";
+    let content = "";
+
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -57,9 +83,13 @@ let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
             if (message === "[DONE]") return;
 
             const parsed = JSON.parse(message);
-            const reasoningContent = parsed.choices[0]?.delta?.reasoning_content || '';
-            const content = parsed.choices[0]?.delta?.content || '';
-            if (reasoningContent.length > 0 || content.length > 0) callback(reasoningContent, content);
+            reasoningContent += parsed.choices[0]?.delta?.reasoning_content || "";
+            content += parsed.choices[0]?.delta?.content || "";
+
+            let thinkTagsParsed = parseThinkTags(reasoningContent, content);
+            if (thinkTagsParsed.reasoningContent.length + thinkTagsParsed.content.length > 0) {
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content);
+            }
         }
     }
 };
@@ -93,6 +123,9 @@ let sendStreamingLLMRequestBailian = async (llmConfig, text, callback) => {
     const reader = response.body.getReader();
     const decoder = new TextDecoder('utf-8');
 
+    let reasoningContent = "";
+    let content = "";
+
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -105,9 +138,12 @@ let sendStreamingLLMRequestBailian = async (llmConfig, text, callback) => {
             const parsed = JSON.parse(message);
             if (parsed.object === "complete") return;
 
-            const reasoningContent = ''; // TODO: fixme
-            const content = parsed.content[0]?.text?.value || '';
-            if (reasoningContent.length > 0 || content.length > 0) callback(reasoningContent, content);
+            content += parsed.content[0]?.text?.value || "";
+            let thinkTagsParsed = parseThinkTags(reasoningContent, content);
+
+            if (thinkTagsParsed.reasoningContent.length + thinkTagsParsed.content.length > 0) {
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content);
+            }
         }
     }
 };

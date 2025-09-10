@@ -232,8 +232,6 @@ let askLLM = (selectedText, tooltip) => {
     tooltip.innerHTML = "<p>正在查询LLM中，请耐心等待。</p>";
 
     let port = chrome.runtime.connect({ name: "llm" });
-    let reasoningContent = "";
-    let content = "";
     let llmAnswerCard = new LLMAnswerCard();
     let cardAttached = false;
     port.postMessage({ text: selectedText });
@@ -243,14 +241,12 @@ let askLLM = (selectedText, tooltip) => {
             if (cardAttached) tooltip.innerHTML += html;
             else tooltip.innerHTML = html;
         } else {
-            reasoningContent += response.reasoningContent;
-            content += response.content;
             if (!cardAttached) {
                 cardAttached = true;
                 tooltip.replaceChildren(llmAnswerCard.root);
             }
-            llmAnswerCard.reasoningContent = reasoningContent;
-            llmAnswerCard.content = content;
+            llmAnswerCard.reasoningContent = response.reasoningContent;
+            llmAnswerCard.content = response.content;
         }
     });
 };
