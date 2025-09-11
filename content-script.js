@@ -223,11 +223,13 @@ class LLMAnswerCard {
     }
 
     set reasoningContent(text) {
-        if (text.length > 0) {
+        if (text.trim().length > 0) {
             this.toggle.style.display = "block";
+            this.think.style.display = this.thinkOpened ? "block" : "none";
             LLMAnswerCard.renderMarkdownAndMath(this.think, text);
         } else {
             this.toggle.style.display = "none";
+            this.think.style.display = "none";
             this.think.innerHTML = "";
         }
     }
@@ -242,18 +244,15 @@ let askLLM = (selectedText, tooltip) => {
 
     let port = chrome.runtime.connect({ name: "llm" });
     let llmAnswerCard = new LLMAnswerCard();
-    let cardAttached = false;
     port.postMessage({ text: selectedText });
     port.onMessage.addListener((response) => {
         if (response.error) {
-            let html = `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
-            if (cardAttached) tooltip.innerHTML += html;
-            else tooltip.innerHTML = html;
+            let div = document.createElement("div");
+            div.innerHTML = `<p>错误：${response.error}</p><p>请检查llm-config.json中的配置是否正确，请检查网络连接是否正常。</p>`;
+            if (tooltip.contains(llmAnswerCard.root)) tooltip.appendChild(div);
+            else tooltip.replaceChildren(div);
         } else {
-            if (!cardAttached) {
-                cardAttached = true;
-                tooltip.replaceChildren(llmAnswerCard.root);
-            }
+            if (!tooltip.contains(llmAnswerCard.root)) tooltip.replaceChildren(llmAnswerCard.root);
             llmAnswerCard.reasoningContent = response.reasoningContent;
             llmAnswerCard.content = response.content;
         }

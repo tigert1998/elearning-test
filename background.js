@@ -42,6 +42,10 @@ let parseThinkTags = (reasoningContent, content) => {
     return { reasoningContent, content };
 }
 
+let constructPrompt = (text) => {
+    return `使用中文对以下问题进行简要解答：\n${text}`;
+};
+
 let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
     let headers = { 'Content-Type': 'application/json' };
     if (llmConfig.token) {
@@ -55,7 +59,7 @@ let sendStreamingLLMRequestOpenAI = async (llmConfig, text, callback) => {
             messages: [
                 {
                     role: "user",
-                    content: `使用中文对以下问题进行简要解答：\n${text}`
+                    content: constructPrompt(text)
                 }
             ],
             stream: true
@@ -114,7 +118,7 @@ let sendStreamingLLMRequestBailian = async (llmConfig, text, callback) => {
             stream: true,
             delta: true,
             sessionId: uniqueCode,
-            message: { "text": text }
+            message: { "text": constructPrompt(text) }
         })
     };
     response = await fetch(llmConfig.run_url, options);
@@ -152,10 +156,12 @@ let sendStreamingLLMRequest = async (text, callback) => {
     let fileUrl = chrome.runtime.getURL("llm-config.json");
     let response = await fetch(fileUrl);
     let llmConfig = await response.json();
-    if (llmConfig.type === "openai") {
-        await sendStreamingLLMRequestOpenAI(llmConfig.openai, text, callback);
-    } else if (llmConfig.type === "bailian") {
-        await sendStreamingLLMRequestBailian(llmConfig.bailian, text, callback);
+    let choice = llmConfig.choice;
+    let profile = llmConfig.profiles[choice];
+    if (profile.type === "openai") {
+        return sendStreamingLLMRequestOpenAI(profile, text, callback);
+    } else if (profile.type === "bailian") {
+        return sendStreamingLLMRequestBailian(profile, text, callback);
     }
 };
 

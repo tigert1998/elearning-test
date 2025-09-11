@@ -25,18 +25,22 @@
 
 ```json
 {
-    "type": "openai",
-    "openai": {
-        "url": "OpenAI格式的大模型调用地址",
-        "token": "调用密钥",
-        "model": "模型名称"
-    },
-    "bailian": {
-        "create_session_url": "公司内百炼的创建session接口地址",
-        "run_url": "公司内百炼的运行接口地址",
-        "key": "百炼平台个人密钥",
-        "agent_code": "百炼智能体编号",
-        "agent_version": "百炼智能体版本代码"
+    "choice": "填写profiles中的key",
+    "profiles": {
+        "profile0": {
+            "type": "openai",
+            "url": "OpenAI格式的大模型调用地址",
+            "token": "调用密钥",
+            "model": "模型名称"
+        },
+        "profile1": {
+            "type": "bailian",
+            "create_session_url": "公司内百炼的创建session接口地址",
+            "run_url": "公司内百炼的运行接口地址",
+            "key": "百炼平台个人密钥",
+            "agent_code": "百炼智能体编号",
+            "agent_version": "百炼智能体版本代码"
+        }
     }
 }
 ```
