@@ -9,16 +9,31 @@ class CheckboxList extends HTMLElement {
 
     #updateList(list) {
         this.shadowRoot.replaceChildren();
-        list.forEach((pair, i) => {
-            let id = `checkbox-list-id-${CheckboxList.numGeneratedIDs++}`;
+        list.forEach((obj, i) => {
             let div = document.createElement("div");
-            div.innerHTML = `<input type="checkbox" id="${id}" ${pair[1] ? "checked" : ""}/>
-<label for="${id}">${pair[0]}</label>`;
-            div.querySelector(`#${id}`).onclick = () => {
-                let newList = list;
-                newList[i][1] = !newList[i][1];
-                this.setAttribute("list", JSON.stringify(newList));
-            };
+            if (obj.choice != null) {
+                div.innerHTML = `<div>${obj.name}</div>`;
+                obj.choices.forEach((choice, choiceIndex) => {
+                    let id = `checkbox-list-id-${CheckboxList.numGeneratedIDs++}`;
+                    let e = document.createElement("div");
+                    e.innerHTML = `<label><input type="radio" name=${obj.name} id=${id} ${choiceIndex === obj.choice ? "checked" : ""}/>${choice}</label>`;
+                    e.style["padding-left"] = "4px";
+                    div.appendChild(e);
+                    div.querySelector(`#${id}`).onclick = () => {
+                        let newList = list;
+                        newList[i].choice = choiceIndex;
+                        this.setAttribute("list", JSON.stringify(newList));
+                    };
+                });
+            } else {
+                let id = `checkbox-list-id-${CheckboxList.numGeneratedIDs++}`;
+                div.innerHTML = `<label><input type="checkbox" id=${id} ${obj[1] ? "checked" : ""}/>${obj[0]}</label>`;
+                div.querySelector(`#${id}`).onclick = () => {
+                    let newList = list;
+                    newList[i][1] = !newList[i][1];
+                    this.setAttribute("list", JSON.stringify(newList));
+                };
+            }
             this.shadowRoot.appendChild(div);
         });
     }

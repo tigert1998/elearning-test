@@ -102,14 +102,16 @@ let getModes = async () => {
     return new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestModes', (result) => {
             let json = result.eLearningTestModes;
-            if (json != null) resolve({ enabled: json[0][1], secret: json[1][1], llm: json[2][1] });
+            if (json != null) resolve({ enabled: json[0].choice >= 1, secret: json[1][1], llm: json[0].choice == 2 });
             else resolve({ enabled: true, secret: false, llm: false });
         })
     });
 };
 
 document.addEventListener("click", async (event) => {
-    let parent = event.target.parentNode;
+    let target = event.target;
+    if (!target.classList.contains("num")) return;
+    let parent = target.parentNode;
     if (!parent.classList.contains("question-steam")) return;
     let question = parent.parentNode;
     if (!question.classList.contains("question-panel-middle")) return;
