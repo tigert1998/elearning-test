@@ -197,7 +197,7 @@ let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
         error: null | string
     };
     // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response: Response) => {
+    chrome.runtime.sendMessage({ searchTerm: searchTerm }, undefined, (response: Response) => {
         if (response.error) {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
@@ -397,14 +397,14 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
 
         let searchTerm = constructSearchRegex(desc);
 
-        chrome.runtime.sendMessage({ searchTerm: searchTerm }).then((response) => {
+        chrome.runtime.sendMessage({ searchTerm: searchTerm }, undefined, (response) => {
             if (response.error) {
                 reject(new Error(response.error));
             } else {
                 let alreadyChecked = false;
 
                 for (let result of response.results) {
-                    let indices = tryMatch(result.row, options);
+                    let indices = tryMatch(result, options);
                     if (indices == null) continue;
                     for (let input of inputs) {
                         alreadyChecked = alreadyChecked || input.checked;

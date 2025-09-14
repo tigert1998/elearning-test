@@ -1,5 +1,6 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
+const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
     entry: {
@@ -10,6 +11,7 @@ module.exports = {
     output: {
         filename: '[name].js',
         path: path.resolve(__dirname, 'dist'),
+        clean: true,
     },
     module: {
         rules: [
@@ -20,6 +22,17 @@ module.exports = {
             },
         ],
     },
+    plugins: [new CopyPlugin({
+        patterns: [
+            { from: 'katex', to: 'katex' },
+            { from: 'popup.html', to: 'popup.html' },
+            { from: 'popup.js', to: 'popup.js' },
+            { from: 'styles.css', to: 'styles.css' },
+            { from: 'manifest.json', to: 'manifest.json' },
+            { from: 'icon.png', to: 'icon.png' },
+            { from: 'injected-script.js', to: 'injected-script.js' },
+        ],
+    })],
     resolve: {
         extensions: ['.ts', '.js'],
     },

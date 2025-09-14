@@ -4,6 +4,7 @@
   },
   "dependencies": {
     "chrome-types": "^0.1.375",
+    "copy-webpack-plugin": "^13.0.1",
     "marked": "^16.2.1",
     "ts-loader": "^9.5.4",
     "typescript": "^5.9.2",

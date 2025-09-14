@@ -9,7 +9,7 @@
         "<all_urls>"
       ],
       "js": [
-        "dist/content-script.js"
+        "content-script.js"
       ],
       "css": [
         "styles.css",
@@ -22,13 +22,13 @@
         "<all_urls>"
       ],
       "js": [
-        "dist/script-injector.js"
+        "script-injector.js"
       ],
       "run_at": "document_start"
     }
   ],
   "background": {
-    "service_worker": "dist/service-worker.js",
+    "service_worker": "service-worker.js",
     "mode": "module"
   },
   "permissions": [
