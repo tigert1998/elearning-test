@@ -42,7 +42,7 @@ let parseThinkTags = (reasoningContent: string, content: string) => {
     return { reasoningContent, content };
 }
 
-let constructPrompt = (text: string) => {
+let buildPrompt = (text: string) => {
     return `使用中文对以下问题进行简要解答：\n${text}`;
 };
 
@@ -63,7 +63,7 @@ let sendStreamingLLMRequestOpenAI = async (
             messages: [
                 {
                     role: "user",
-                    content: constructPrompt(text)
+                    content: buildPrompt(text)
                 }
             ],
             stream: true
@@ -128,7 +128,7 @@ let sendStreamingLLMRequestBailian = async (
             stream: true,
             delta: true,
             sessionId: uniqueCode,
-            message: { "text": constructPrompt(text) }
+            message: { "text": buildPrompt(text) }
         })
     };
     response = await fetch(llmConfig.run_url, options);

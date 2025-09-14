@@ -1,116 +1,7 @@
 import * as marked from "marked";
-import { SearchInExcelRow } from "./common";
+import { SearchInExcelRow, buildSearchRegex } from "./common";
+import { parseQuestion, buildQuestionHTML } from "./question";
 import renderMathInElement from "./katex/contrib/auto-render.min.patched.js";
-
-let constructSearchRegex = (text: string): string => {
-    return text.replace(/\s+/g, "")
-        .split('')
-        .map(c => c.replace(/[.*+?^${}()|\[\]\\]/g, '\\$&'))
-        .join('\\s*');
-};
-
-let isSubsetOf = (x: Set<string>, y: Set<string>) => {
-    for (let k of x.keys()) {
-        if (!y.has(k)) return false;
-    }
-    return true;
-};
-
-let findKeys = (row: any[][], substr: string) => {
-    let ks: string[] = [];
-    for (let [k, v] of row) {
-        if (k.includes(substr)) ks.push(k);
-    }
-    return ks;
-};
-
-type ParseAnswerRuleResult = string | {
-    "problem": string,
-    "answer": string,
-    "options": { [key: string]: string }
-};
-
-let parseAnswerRules = [
-    (row: any[][]) => {
-        // 题干    选项A    选项B    选项C    选项D    答案
-
-        let ansKey = findKeys(row, "答案");
-        if (ansKey.length !== 1) return null;
-        let problemKey = findKeys(row, "题干");
-        if (problemKey.length !== 1) return null;
-
-        let object = Object.fromEntries(row);
-        let ans = object[ansKey[0]];
-        if (ans == null) return null;
-        let problem = object[problemKey[0]];
-        if (problem == null) return null;
-
-        let obj: { "problem": string, "answer": string, "options": { [key: string]: string } } =
-            { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
-        for (let [k, v] of row) {
-            if (!k.startsWith("选项") || k.length <= 2 || v == null || String(v).trim() === "") continue;
-            obj["options"][k.substring(2).trim()] = String(v).trim();
-        }
-        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) {
-            let regex = new RegExp(constructSearchRegex(obj["answer"]), "gi");
-            for (let [k, v] of Object.entries(obj["options"])) {
-                if (v.match(regex)) {
-                    obj["answer"] = k;
-                    return obj;
-                }
-            }
-            return null;
-        }
-
-        return obj;
-    },
-    (row: any[][]) => {
-        // 题干               选项              答案
-        // 测试题目的题干     A-选项1|B-选项2     B
-
-        let ansKey = findKeys(row, "答案");
-        if (ansKey.length !== 1) return null;
-        let problemKey = findKeys(row, "题干");
-        if (problemKey.length !== 1) return null;
-
-        let object = Object.fromEntries(row);
-        let ans = object[ansKey[0]];
-        if (ans == null) return null;
-        let options: string = object["选项"];
-        if (options == null) return null;
-        let problem = object[problemKey[0]];
-        if (problem == null) return null;
-
-        let obj: { "problem": string, "answer": string, "options": { [key: string]: string } }
-            = { "problem": String(problem), "answer": String(ans).trim(), "options": {} };
-
-        options.split("|").forEach((opt) => {
-            let c = opt.trim()[0];
-            obj["options"][c] = opt.trim().substring(2).trim();
-        });
-        if (!isSubsetOf(new Set(obj["answer"]), new Set(Object.keys(obj["options"])))) return null;
-
-        return obj;
-    },
-    (row: any[][]) => {
-        // default
-        let text = "";
-        for (let [k, v] of row) {
-            if (v == null || String(v).trim() === "") continue;
-            text += `【${k}】${v}`;
-        }
-        return text;
-    }
-];
-
-let parseAnswer = (result: { headers: string[], cells: any[] }): ParseAnswerRuleResult => {
-    let row = result.headers.map((header, index) => [header, result.cells[index]]);
-    for (let func of parseAnswerRules) {
-        let obj = func(row);
-        if (obj != null) return obj;
-    }
-    throw new Error(`Cannot parse answer result: ${result}`)
-};
 
 let getModes = async (): Promise<{ enabled: boolean, secret: boolean, llm: boolean }> => {
     return new Promise((resolve, reject) => {
@@ -146,41 +37,10 @@ document.addEventListener("mousedown", (event) => {
     tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
 });
 
-let buildQuestionHTML = (obj: ParseAnswerRuleResult, regExp: RegExp) => {
-    let text = "";
-
-    let valid = false;
-    let matchRegExp = (text: string) => {
-        if (text.match(regExp)) {
-            valid = true;
-            return text.replace(regExp, `<span class="elearning-test-match">$&</span>`);
-        } else {
-            return text;
-        }
-    };
-
-    if (typeof obj === "string") text = matchRegExp(obj);
-    else {
-        text = `【题干】${matchRegExp(obj["problem"])}<br>`;
-        for (let [k, v] of Object.entries(obj["options"])) {
-            let line = `【选项${k}】${matchRegExp(v)}`;
-            if (obj["answer"].includes(k)) {
-                text += `<span class="elearning-test-answer">${line}</span><br>`;
-            } else {
-                text += `${line}<br>`;
-            }
-        }
-        text += `【答案】${matchRegExp(obj["answer"])}`;
-    }
-
-    if (valid) return text;
-    return null;
-}
-
 let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
     tooltip.innerHTML = "<p>正在检索题库中，请耐心等待。</p>";
 
-    let searchTerm = constructSearchRegex(selectedText);
+    let searchTerm = buildSearchRegex(selectedText);
     // emoji is not supported yet
     const regExp = new RegExp(searchTerm, 'gi');
 
@@ -194,7 +54,7 @@ let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
             let cellHtmls = response.results
-                .map((result) => buildQuestionHTML(parseAnswer(result), regExp))
+                .map((result) => buildQuestionHTML(parseQuestion(result), regExp))
                 .filter((html) => html != null);
 
             let numColumns = 3;
@@ -330,13 +190,13 @@ document.addEventListener("mouseup", async (event) => {
     }
 });
 
-let tryMatch = (answerRow: { headers: string[], cells: any[] }, options: string[]) => {
-    let obj = parseAnswer(answerRow);
+let tryMatch = (row: { headers: string[], cells: any[] }, options: string[]) => {
+    let obj = parseQuestion(row);
     if (obj == null || typeof obj === "string") return null;
     if (Object.entries(obj["options"]).length !== options.length) return null;
 
     let matches = options.map((option: string): string | null => {
-        let regExp = new RegExp(`^${constructSearchRegex(option)}$`, "gi");
+        let regExp = new RegExp(`^${buildSearchRegex(option)}$`, "gi");
         for (let [k, v] of Object.entries(obj["options"])) {
             if (v.match(regExp)) return k;
         }
@@ -387,7 +247,7 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
             return;
         }
 
-        let searchTerm = constructSearchRegex(desc);
+        let searchTerm = buildSearchRegex(desc);
 
         chrome.runtime.sendMessage({ searchTerm: searchTerm }, undefined, (response) => {
             if (response.error) {

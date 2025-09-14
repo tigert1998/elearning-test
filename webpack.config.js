@@ -5,9 +5,9 @@ const CopyPlugin = require('copy-webpack-plugin');
 module.exports = {
     // devtool: 'source-map',
     entry: {
-        "service-worker": "./service-worker.ts",
-        "script-injector": "./script-injector.ts",
-        "content-script": "./content-script.ts"
+        "service-worker": "./src/service-worker.ts",
+        "script-injector": "./src/script-injector.ts",
+        "content-script": "./src/content-script.ts"
     },
     output: {
         filename: '[name].js',
@@ -25,7 +25,7 @@ module.exports = {
     },
     plugins: [new CopyPlugin({
         patterns: [
-            { from: 'katex', to: 'katex' },
+            { from: 'src/katex', to: 'katex' },
             { from: 'popup.html', to: 'popup.html' },
             { from: 'popup.js', to: 'popup.js' },
             { from: 'styles.css', to: 'styles.css' },
