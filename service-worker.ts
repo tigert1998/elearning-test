@@ -1,6 +1,6 @@
 import * as XLSX from "xlsx";
+import { SearchInExcelRow } from "./common";
 
-// 监听来自content_script.js的消息
 chrome.runtime.onMessage.addListener((request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
     searchInExcel(request.searchTerm).then((results) => {
         sendResponse({ results: results, error: null });
@@ -176,14 +176,6 @@ let sendStreamingLLMRequest = async (text: string, callback: LLMQueryCallback) =
     } else if (profile.type === "bailian") {
         return sendStreamingLLMRequestBailian(profile, text, callback);
     }
-};
-
-type SearchInExcelRow = {
-    rowIndex: number,
-    headers: string[],
-    cells: any[],
-    file: string,
-    sheet: string,
 };
 
 let searchInExcel = async (searchTerm: string): Promise<SearchInExcelRow[]> => {

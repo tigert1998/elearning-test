@@ -1,4 +1,5 @@
 import * as marked from "marked";
+import { SearchInExcelRow } from "./common";
 import renderMathInElement from "./katex/contrib/auto-render.min.patched.js";
 
 let constructSearchRegex = (text: string): string => {
@@ -175,15 +176,6 @@ let buildQuestionHTML = (obj: ParseAnswerRuleResult, regExp: RegExp) => {
     if (valid) return text;
     return null;
 }
-
-// TODO
-type SearchInExcelRow = {
-    rowIndex: number,
-    headers: string[],
-    cells: any[],
-    file: string,
-    sheet: string,
-};
 
 let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
     tooltip.innerHTML = "<p>正在检索题库中，请耐心等待。</p>";
