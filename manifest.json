@@ -25,13 +25,14 @@
         "<all_urls>"
       ],
       "js": [
-        "script-injector.js"
+        "dist/script-injector.js"
       ],
       "run_at": "document_start"
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "dist/service-worker.js",
+    "mode": "module"
   },
   "permissions": [
     "tabs",

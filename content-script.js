@@ -91,7 +91,8 @@ let parseAnswerRules = [
     }
 ];
 
-let parseAnswer = (row) => {
+let parseAnswer = (result) => {
+    let row = result.headers.map((header, index) => [header, result.cells[index]]);
     for (let func of parseAnswerRules) {
         let obj = func(row);
         if (obj != null) return obj;
@@ -116,7 +117,11 @@ document.addEventListener("click", async (event) => {
     let question = parent.parentNode;
     if (!question.classList.contains("question-panel-middle")) return;
 
-    await fillInQuestion(question, () => { });
+    try {
+        await fillInQuestion(question, () => { });
+    } catch (e) {
+        console.warn(`Can't fill in question because an error is throwed: ${e.stack}`);
+    }
 });
 
 let tooltips = [];
@@ -172,7 +177,7 @@ let searchQuestions = (selectedText, tooltip) => {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
             let cellHtmls = response.results
-                .map((result) => buildQuestionHTML(parseAnswer(result.row), regExp))
+                .map((result) => buildQuestionHTML(parseAnswer(result), regExp))
                 .filter((html) => html != null);
 
             let numColumns = 3;
