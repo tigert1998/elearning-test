@@ -75,6 +75,8 @@ document.getElementById("update-file-list-btn").onclick = () => {
                 });
                 document.getElementById("file-list").setAttribute("list", JSON.stringify(list));
             });
+        }, () => {
+            document.getElementById("file-list").setAttribute("list", JSON.stringify([]));
         });
     });
 };

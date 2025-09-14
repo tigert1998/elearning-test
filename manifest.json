@@ -9,10 +9,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content-script.js",
-        "marked.umd.js",
-        "katex/katex.min.js",
-        "katex/contrib/auto-render.min.js"
+        "content-script.js"
       ],
       "css": [
         "styles.css",
@@ -31,7 +28,8 @@
     }
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "service-worker.js",
+    "mode": "module"
   },
   "permissions": [
     "tabs",
@@ -53,7 +51,8 @@
       "resources": [
         "tiku/*",
         "injected-script.js",
-        "katex/fonts/*"
+        "katex/fonts/*",
+        "*.js.map"
       ],
       "matches": [
         "<all_urls>"

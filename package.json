@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "build": "webpack"
+  },
+  "dependencies": {
+    "chrome-types": "^0.1.375",
+    "copy-webpack-plugin": "^13.0.1",
+    "marked": "^16.2.1",
+    "ts-loader": "^9.5.4",
+    "typescript": "^5.9.2",
+    "webpack": "^5.101.3",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "webpack-cli": "^6.0.1"
+  }
+}
