@@ -1,9 +1,11 @@
 const path = require('path');
+const TerserPlugin = require('terser-webpack-plugin');
 
 module.exports = {
     entry: {
         "service-worker": "./service-worker.ts",
-        "script-injector": "./script-injector.ts"
+        "script-injector": "./script-injector.ts",
+        "content-script": "./content-script.ts"
     },
     output: {
         filename: '[name].js',
@@ -23,6 +25,17 @@ module.exports = {
     },
     mode: 'production',
     optimization: {
-        minimize: true
+        minimize: true,
+        minimizer: [
+            new TerserPlugin({
+                parallel: true,
+                terserOptions: {
+                    ecma: 6,
+                    output: {
+                        ascii_only: true
+                    },
+                },
+            }),
+        ],
     }
 };

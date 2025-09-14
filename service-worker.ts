@@ -209,7 +209,7 @@ let searchInExcel = async (searchTerm: string): Promise<SearchInExcelRow[]> => {
         const arrayBuffer = await response.arrayBuffer();
         const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
 
-        let results = [];
+        let results: SearchInExcelRow[] = [];
 
         // 遍历所有工作表
         for (let sheetName of workbook.SheetNames) {

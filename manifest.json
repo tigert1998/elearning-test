@@ -9,10 +9,7 @@
         "<all_urls>"
       ],
       "js": [
-        "content-script.js",
-        "marked.umd.js",
-        "katex/katex.min.js",
-        "katex/contrib/auto-render.min.js"
+        "dist/content-script.js"
       ],
       "css": [
         "styles.css",
