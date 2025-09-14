@@ -51,7 +51,8 @@
       "resources": [
         "tiku/*",
         "injected-script.js",
-        "katex/fonts/*"
+        "katex/fonts/*",
+        "*.js.map"
       ],
       "matches": [
         "<all_urls>"

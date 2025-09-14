@@ -3,6 +3,7 @@ const TerserPlugin = require('terser-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
 
 module.exports = {
+    // devtool: 'source-map',
     entry: {
         "service-worker": "./service-worker.ts",
         "script-injector": "./script-injector.ts",
