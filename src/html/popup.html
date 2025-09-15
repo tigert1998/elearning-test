@@ -18,7 +18,7 @@
 
 <body>
     <checkbox-list id="modes"
-        list-init="[{&quot;name&quot;: &quot;框选模式&quot;, &quot;choice&quot;: 1, &quot;choices&quot;: [&quot;关闭框选&quot;, &quot;题库匹配&quot;, &quot;大模型匹配&quot;]}, [&quot;隐蔽模式&quot;, false]]"
+        list-init="[{&quot;type&quot;: &quot;radio&quot;, &quot;name&quot;: &quot;框选模式&quot;, &quot;choice&quot;: 1, &quot;choices&quot;: [&quot;关闭框选&quot;, &quot;题库匹配&quot;, &quot;大模型匹配&quot;]}, {&quot;type&quot;: &quot;checkbox&quot;, &quot;name&quot;: &quot;隐蔽模式&quot;, &quot;checked&quot;: false}]"
         chrome-storage-name="eLearningTestModes"></checkbox-list>
     <hr>
 
@@ -30,8 +30,6 @@
     <div id="one-click-complete-result"></div>
     <p class="important-notice">重要提示：考试后台会记录考试开始和结束时间，请谨慎决定交卷时机。</p>
     <button type="button" id="one-click-complete-btn">一键答题</button>
-
-    <script src="popup.js"></script>
 </body>
 
 </html>

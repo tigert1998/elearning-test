@@ -1,0 +1,33 @@
+.elearning-test-match {
+    background-color: yellow;
+}
+
+.elearning-test-answer {
+    color: red;
+}
+
+.elearning-test-table-cell {
+    border: 1px solid #ccc;
+}
+
+.elearning-test-tooltip {
+    position: absolute;
+    background-color: #fff;
+    color: #000;
+    border: 1px solid #ccc;
+    padding: 5px;
+    z-index: 9999;
+}
+
+.elearning-test-llm-think {
+    background-color: #E8F4F8;
+    border: 1px solid #ccc;
+}
+
+.elearning-test-llm-toggle {
+    background-color: #008CBA;
+    border: none;
+    color: white;
+    text-align: center;
+    text-decoration: none;
+}

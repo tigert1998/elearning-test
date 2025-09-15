@@ -1,13 +1,13 @@
 import * as marked from "marked";
-import { SearchInExcelRow, buildSearchRegex } from "./common";
+import { OneClickCompleteResult, SearchInExcelRow, buildSearchRegex } from "./common";
 import { parseQuestion, buildQuestionHTML } from "./question";
-import renderMathInElement from "./katex/contrib/auto-render.min.patched.js";
+import renderMathInElement from "../js/katex/contrib/auto-render.min.patched.js";
 
 let getModes = async (): Promise<{ enabled: boolean, secret: boolean, llm: boolean }> => {
     return new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestModes', (result) => {
             let json = result.eLearningTestModes;
-            if (json != null) resolve({ enabled: json[0].choice >= 1, secret: json[1][1], llm: json[0].choice == 2 });
+            if (json != null) resolve({ enabled: json[0].choice >= 1, secret: json[1].checked, llm: json[0].choice == 2 });
             else resolve({ enabled: true, secret: false, llm: false });
         })
     });
@@ -282,7 +282,7 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
     });
 }
 
-let oneClickComplete = async () => {
+let oneClickComplete = async (): Promise<OneClickCompleteResult> => {
     let questions = document.getElementsByClassName("question-panel-middle");
 
     let promises: Promise<void>[] = [];
@@ -318,7 +318,7 @@ let oneClickComplete = async () => {
 chrome.runtime.onMessage.addListener((request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
     if (request !== "elearning-test-one-click-complete") return false;
     oneClickComplete().then((results) => {
-        sendResponse({ results: results });
+        sendResponse(results);
     })
     return true;
 });

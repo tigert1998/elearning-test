@@ -6,16 +6,17 @@ window.addEventListener("load", (event) => {
     window.onblur = null;
 
     // 禁止阻止复制、粘贴、剪切弹窗
-    if (typeof $ !== "undefined" && typeof $?.fn?.jquery === "string") {
-        let version = $.fn.jquery.split(".").map((s) => parseInt(s, 10));
+    if ("$" in window && (window.$ as any).fn?.jquery === "string") {
+        let jq = window.$ as any;
+        let version = jq.fn.jquery.split(".").map((s: string) => parseInt(s, 10));
         if (version[0] <= 0 || (version[0] === 1 && version[1] <= 6)) {
-            $("body").unbind("copy");
-            $("body").unbind("paste");
-            $("body").unbind("cut");
+            jq("body").unbind("copy");
+            jq("body").unbind("paste");
+            jq("body").unbind("cut");
         } else {
-            $("body").off("copy");
-            $("body").off("paste");
-            $("body").off("cut");
+            jq("body").off("copy");
+            jq("body").off("paste");
+            jq("body").off("cut");
         }
     }
 
@@ -29,7 +30,7 @@ window.addEventListener("load", (event) => {
             "-o-user-select",
             "user-select"
         ]) {
-            element.style[p] = "text";
+            (element as HTMLElement).style.setProperty(p, "text");
         }
     });
 });

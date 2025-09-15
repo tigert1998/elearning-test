@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { SearchInExcelRow } from "./common";
+import { CheckboxConfig, CheckboxListConfig, SearchInExcelRow } from "./common";
 
 chrome.runtime.onMessage.addListener((request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
     searchInExcel(request.searchTerm).then((results) => {
@@ -181,7 +181,7 @@ let sendStreamingLLMRequest = async (text: string, callback: LLMQueryCallback) =
 let searchInExcel = async (searchTerm: string): Promise<SearchInExcelRow[]> => {
     let regExp = new RegExp(searchTerm, "gi");
 
-    let fileList: string[][] = await new Promise((resolve, reject) => {
+    let fileList: CheckboxListConfig = await new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestFileList', (result) => {
             let fileList = result.eLearningTestFileList;
             if (fileList == null) reject(new Error("Sheet list is not prepared"));
@@ -190,8 +190,8 @@ let searchInExcel = async (searchTerm: string): Promise<SearchInExcelRow[]> => {
     });
 
     let arrays = await Promise.all(fileList.map(async (pair) => {
-        let file = pair[0];
-        let enabled = pair[1];
+        let file = pair.name;
+        let enabled = (pair as CheckboxConfig).checked;
         if (!enabled) return [];
         const fileUrl = chrome.runtime.getURL(`tiku/${file}`);
         const response = await fetch(fileUrl);

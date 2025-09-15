@@ -1,13 +1,16 @@
 const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const CopyPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 module.exports = {
     // devtool: 'source-map',
     entry: {
-        "service-worker": "./src/service-worker.ts",
-        "script-injector": "./src/script-injector.ts",
-        "content-script": "./src/content-script.ts"
+        "service-worker": "./src/ts/service-worker.ts",
+        "script-injector": "./src/ts/script-injector.ts",
+        "content-script": "./src/ts/content-script.ts",
+        "popup": "./src/ts/popup.ts",
+        "injected-script": "./src/ts/injected-script.ts"
     },
     output: {
         filename: '[name].js',
@@ -23,17 +26,20 @@ module.exports = {
             },
         ],
     },
-    plugins: [new CopyPlugin({
-        patterns: [
-            { from: 'src/katex', to: 'katex' },
-            { from: 'popup.html', to: 'popup.html' },
-            { from: 'popup.js', to: 'popup.js' },
-            { from: 'styles.css', to: 'styles.css' },
-            { from: 'manifest.json', to: 'manifest.json' },
-            { from: 'icon.png', to: 'icon.png' },
-            { from: 'injected-script.js', to: 'injected-script.js' },
-        ],
-    })],
+    plugins: [
+        new CopyPlugin({
+            patterns: [
+                { from: 'src/assets', to: '.' },
+                { from: 'manifest.json', to: 'manifest.json' },
+                { from: 'icons', to: 'icons' },
+            ],
+        }),
+        new HtmlWebpackPlugin({
+            template: "src/html/popup.html",
+            filename: "popup.html",
+            chunks: ["popup"]
+        })
+    ],
     resolve: {
         extensions: ['.ts', '.js'],
     },
