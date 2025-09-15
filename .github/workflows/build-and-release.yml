@@ -1,0 +1,59 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-zip:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'  
+        cache: 'npm'        
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Zip dist folder
+      run: |
+        mv dist elearning-test-dist
+        zip -r elearning-test-dist.zip elearning-test-dist
+
+    - name: Create release tag
+      id: create_tag
+      run: |
+        VERSION=$(echo "let fs = require('fs'); console.log(JSON.parse(fs.readFileSync('./manifest.json'))['version']);" | node)
+        TAG_NAME="release-${VERSION}"
+        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_OUTPUT
+        git tag $TAG_NAME
+        git push origin $TAG_NAME
+
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.create_tag.outputs.TAG_NAME }}
+        release_name: ${{ steps.create_tag.outputs.TAG_NAME }}
+        draft: false
+        prerelease: false
+
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: elearning-test-dist.zip
+        asset_name: elearning-test-dist.zip
+        asset_content_type: application/zip
