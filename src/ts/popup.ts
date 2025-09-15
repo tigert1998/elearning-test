@@ -93,21 +93,25 @@ oneClickCompleteBtn.onclick = () => {
     element.innerHTML = "<p>自动答题中，请耐心等待。</p>";
     chrome.tabs.query({ active: true, currentWindow: true }, tabs => {
         let tab = tabs[0];
+        let invalidPageErrorMessageHTML = "<p>请确认是否打开了答题页面，或尝试重启浏览器。</p>";
         if (tab.id == null) {
-            element.innerHTML = "<p>请确认是否打开了答题页面，或尝试重启浏览器。</p>";
+            element.innerHTML = invalidPageErrorMessageHTML;
             return;
         }
         chrome.tabs.sendMessage(tab.id, "elearning-test-one-click-complete", undefined, (response: OneClickCompleteResult) => {
-            let html = "";
-            html = `<p>匹配题目数：${response.match}</p><p>未匹配题目数：${response.notMatch}</p>`;
-            if (response.errors.length > 0) {
-                html += "<p>如遇大量错误，请检查题库列表是否更新。</p>";
+            if ("lastError" in chrome.runtime) {
+                element.innerHTML = invalidPageErrorMessageHTML;
+            } else {
+                let html = "";
+                html = `<p>匹配题目数：${response.match}</p><p>未匹配题目数：${response.notMatch}</p>`;
+                if (response.errors.length > 0) {
+                    html += "<p>如遇大量错误，请检查题库列表是否更新。</p>";
+                }
+                response.errors.forEach((error) => {
+                    html += `<p>匹配第${error.index + 1}题时遇到错误：${error.reason}</p>`;
+                });
+                element.innerHTML = html;
             }
-            response.errors.forEach((error) => {
-                html += `<p>匹配第${error.index + 1}题时遇到错误：${error.reason}</p>`;
-            });
-            element.innerHTML = html;
-
             oneClickCompleteBtn.disabled = false;
         });
     });
