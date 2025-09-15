@@ -216,12 +216,12 @@ let searchInExcel = async (searchTerm: string): Promise<SearchInExcelRow[]> => {
                 return Promise.reject(new Error(`Sheet ${sheetName} in ${file} contains duplicate headers`));
 
             for (let i = 1; i < sheetData.length; i++) {
-                let cells = sheetData[i] as any[];
-                if (cells.some((cell) => cell != null && String(cell).match(regExp))) {
+                let values = sheetData[i] as any[];
+                if (values.some((value) => value != null && String(value).match(regExp))) {
                     results.push({
                         rowIndex: i - 1,
                         headers,
-                        cells,
+                        values,
                         file,
                         sheet: sheetName
                     });

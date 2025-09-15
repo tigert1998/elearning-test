@@ -1,6 +1,6 @@
 import * as marked from "marked";
 import { OneClickCompleteResult, SearchInExcelRow, buildSearchRegex } from "./common";
-import { parseQuestion, buildQuestionHTML } from "./question";
+import { BankItem, toHighlightedHTMLFallback } from "./bank-item";
 import renderMathInElement from "../js/katex/contrib/auto-render.min.patched.js";
 
 let getModes = async (): Promise<{ enabled: boolean, secret: boolean, llm: boolean }> => {
@@ -37,7 +37,7 @@ document.addEventListener("mousedown", (event) => {
     tooltipsToRemove.forEach((tooltip) => { tooltip.remove(); });
 });
 
-let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
+let searchBank = (selectedText: string, tooltip: HTMLElement) => {
     tooltip.innerHTML = "<p>正在检索题库中，请耐心等待。</p>";
 
     let searchTerm = buildSearchRegex(selectedText);
@@ -53,10 +53,17 @@ let searchQuestions = (selectedText: string, tooltip: HTMLElement) => {
         if (response.error) {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
         } else {
-            let cellHtmls = response.results
-                .map((result) => buildQuestionHTML(parseQuestion(result), regExp))
-                .filter((html) => html != null);
-
+            let cellHtmls: string[] = []
+            for (let row of response.results) {
+                let bankItem = BankItem.fromHeadersAndValues(row.headers, row.values);
+                let html: string | null = null;
+                if (bankItem == null) {
+                    html = toHighlightedHTMLFallback(row.headers, row.values, regExp);
+                } else {
+                    html = bankItem.toHighlightedHTML(regExp);
+                }
+                if (html != null) cellHtmls.push(html);
+            }
             let numColumns = 3;
             let html = "<table>";
             for (let i = 0; i < cellHtmls.length; i += numColumns) {
@@ -186,18 +193,18 @@ document.addEventListener("mouseup", async (event) => {
     if (modes.llm) {
         askLLM(selectedText, tooltip);
     } else {
-        searchQuestions(selectedText, tooltip);
+        searchBank(selectedText, tooltip);
     }
 });
 
-let tryMatch = (row: { headers: string[], cells: any[] }, options: string[]) => {
-    let obj = parseQuestion(row);
-    if (obj == null || typeof obj === "string") return null;
-    if (Object.entries(obj["options"]).length !== options.length) return null;
+let tryMatch = (row: SearchInExcelRow, options: string[]) => {
+    let bankItem = BankItem.fromHeadersAndValues(row.headers, row.values);
+    if (bankItem == null) return null;
+    if (Object.entries(bankItem.options).length !== options.length) return null;
 
     let matches = options.map((option: string): string | null => {
         let regExp = new RegExp(`^${buildSearchRegex(option)}$`, "gi");
-        for (let [k, v] of Object.entries(obj["options"])) {
+        for (let [k, v] of Object.entries(bankItem.options)) {
             if (v.match(regExp)) return k;
         }
         return null;
@@ -205,7 +212,7 @@ let tryMatch = (row: { headers: string[], cells: any[] }, options: string[]) => 
     if (matches.includes(null)) return null;
 
     let indices: number[] = [];
-    matches.forEach((match, idx) => { if (obj["answer"].includes(match as string)) indices.push(idx); });
+    matches.forEach((match, idx) => { if (bankItem.answer.includes(match as string)) indices.push(idx); });
     return indices;
 };
 

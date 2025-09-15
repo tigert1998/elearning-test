@@ -1,4 +1,6 @@
 window.addEventListener("load", (event) => {
+    console.log("The hacking script is injected.");
+
     // 禁止阻止右键
     document.oncontextmenu = null;
 
@@ -6,9 +8,11 @@ window.addEventListener("load", (event) => {
     window.onblur = null;
 
     // 禁止阻止复制、粘贴、剪切弹窗
-    if ("$" in window && (window.$ as any).fn?.jquery === "string") {
+    if ("$" in window && typeof (window.$ as any).fn?.jquery === "string") {
         let jq = window.$ as any;
-        let version = jq.fn.jquery.split(".").map((s: string) => parseInt(s, 10));
+        let version: number[] = jq.fn.jquery.split(".").map((s: string) => parseInt(s, 10));
+        console.log(`JQuery is detected: ${jq}`);
+        console.log(`JQuery version: ${JSON.stringify(version)}`);
         if (version[0] <= 0 || (version[0] === 1 && version[1] <= 6)) {
             jq("body").unbind("copy");
             jq("body").unbind("paste");
