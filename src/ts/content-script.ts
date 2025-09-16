@@ -1,14 +1,19 @@
 import * as marked from "marked";
-import { OneClickCompleteResult, SearchInExcelRow, buildSearchRegex } from "./common";
+import { OneClickCompleteResult, SearchInExcelRow, ServiceWorkerRequestMessage, ServiceWorkerResponseMessage, buildSearchRegex } from "./common";
 import { BankItem, toHighlightedHTMLFallback } from "./bank-item";
 import renderMathInElement from "../js/katex/contrib/auto-render.min.patched.js";
 
-let getModes = async (): Promise<{ enabled: boolean, secret: boolean, llm: boolean }> => {
+let getModes = async (): Promise<{ enabled: boolean, secret: boolean, llm: boolean, llmAutoSolve: boolean }> => {
     return new Promise((resolve, reject) => {
         chrome.storage.local.get('eLearningTestModes', (result) => {
             let json = result.eLearningTestModes;
-            if (json != null) resolve({ enabled: json[0].choice >= 1, secret: json[1].checked, llm: json[0].choice == 2 });
-            else resolve({ enabled: true, secret: false, llm: false });
+            if (json != null) resolve({
+                enabled: json[0].choice != 0,
+                secret: json[1].choice == 1,
+                llm: json[0].choice == 2,
+                llmAutoSolve: json[2].choice == 1
+            });
+            else resolve({ enabled: true, secret: false, llm: false, llmAutoSolve: false });
         })
     });
 };
@@ -44,17 +49,13 @@ let searchBank = (selectedText: string, tooltip: HTMLElement) => {
     // emoji is not supported yet
     const regExp = new RegExp(searchTerm, 'gi');
 
-    interface Response {
-        results: SearchInExcelRow[],
-        error: null | string
-    };
-    // 向后台发送消息，请求处理文本内容
-    chrome.runtime.sendMessage({ searchTerm: searchTerm }, undefined, (response: Response) => {
+    let request: ServiceWorkerRequestMessage = { bankSearchTerm: searchTerm };
+    chrome.runtime.sendMessage(request, undefined, (response: ServiceWorkerResponseMessage) => {
         if (response.error) {
             tooltip.innerHTML = `<p>错误：${response.error}</p><p>您可以尝试点击插件图标，然后点击更新题库列表，并刷新页面。</p>`;
-        } else {
+        } else if (response.searchInExcelRows != null) {
             let cellHtmls: string[] = []
-            for (let row of response.results) {
+            for (let row of response.searchInExcelRows) {
                 let bankItem = BankItem.fromHeadersAndValues(row.headers, row.values);
                 let html: string | null = null;
                 if (bankItem == null) {
@@ -226,44 +227,41 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
     let ansProgressElement = ansProgressElements[0] as HTMLElement;
     let totalQuestions = parseInt((totalElements[0] as HTMLElement).innerText);
 
-    await new Promise((resolve, reject) => {
-        let descElement = question.querySelector(".question-steam > span:last-child") as (HTMLElement | null);
-        if (descElement == null) {
-            reject(new Error("No question description found"));
-            return;
-        }
-        let match = descElement.innerText.match(/(.+)（.+）$/);
+    let descElement = question.querySelector(".question-steam > span:last-child") as (HTMLElement | null);
+    if (descElement == null) {
+        return Promise.reject(new Error("No question description found"));
+    }
+    let match = descElement.innerText.match(/(.+)（.+）$/);
+    if (match == null) {
+        return Promise.reject(new Error("Cannot match question scores with regex"));
+    }
+    let desc = match[1];
+    let options: string[] = [];
+    for (let e of question.querySelectorAll(".item-details")) {
+        let match = (e as HTMLElement).innerText.match(/^[A-Z]\.(.+)/);
         if (match == null) {
-            reject(new Error("Cannot match question scores with regex"));
-            return;
+            return Promise.reject(new Error("Cannot match options with regex"));
         }
-        let desc = match[1];
-        let options: string[] = [];
-        for (let e of question.querySelectorAll(".item-details")) {
-            let match = (e as HTMLElement).innerText.match(/^[A-Z]\.(.+)/);
-            if (match == null) {
-                reject(new Error("Cannot match options with regex"));
-                return;
-            }
-            options.push(match[1]);
-        };
-        let inputs = question.querySelectorAll("input");
-        let link = document.getElementById(`no_${inputs[0].name}`);
-        if (link == null) {
-            reject(new Error("No link element found"));
-            return;
-        }
+        options.push(match[1]);
+    };
+    let inputs = question.querySelectorAll("input");
+    let link = document.getElementById(`no_${inputs[0].name}`);
+    if (link == null) {
+        return Promise.reject(new Error("No link element found"));
+    }
 
+    let answered = await new Promise((resolve, reject) => {
         let searchTerm = buildSearchRegex(desc);
-
-        chrome.runtime.sendMessage({ searchTerm: searchTerm }, undefined, (response) => {
+        let request: ServiceWorkerRequestMessage = { bankSearchTerm: searchTerm };
+        chrome.runtime.sendMessage(request, undefined, (response: ServiceWorkerResponseMessage) => {
             if (response.error) {
                 reject(new Error(response.error));
-            } else {
+            } else if (response.searchInExcelRows != null) {
                 let alreadyChecked = false;
+                let answered = false;
 
-                for (let result of response.results) {
-                    let indices = tryMatch(result, options);
+                for (let row of response.searchInExcelRows) {
+                    let indices = tryMatch(row, options);
                     if (indices == null) continue;
                     for (let input of inputs) {
                         alreadyChecked = alreadyChecked || input.checked;
@@ -271,19 +269,57 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
                     }
                     for (let idx of indices) inputs[idx].checked = true;
                     callback();
+                    answered = true;
                     break;
                 }
 
                 // update progress
-                for (let input of inputs) if (input.checked) {
-                    let numAnswered = parseInt(ansNumElement.innerText) + (alreadyChecked ? 0 : 1);
+                if (answered && !alreadyChecked) {
+                    let numAnswered = parseInt(ansNumElement.innerText) + 1;
                     ansNumElement.innerText = `${numAnswered}`;
                     ansProgressElement.style["width"] = `${100.0 * numAnswered / totalQuestions}%`;
                     link.classList.add("done");
-                    break;
                 }
 
-                resolve(null);
+                resolve(answered);
+            }
+        });
+    });
+
+    if (answered) return;
+    let modes = await getModes();
+    if (!modes.llmAutoSolve) return;
+
+    let questionType = inputs[0].type;
+    if (questionType !== "radio" && questionType !== "checkbox") {
+        return Promise.reject(new Error(`Invalid question type ${questionType} detected`));
+    }
+
+    await new Promise((resolve, reject) => {
+        let request: ServiceWorkerRequestMessage = { llmAutoSolve: { type: questionType, problem: desc, options: options } };
+        chrome.runtime.sendMessage(request, undefined, (response: ServiceWorkerResponseMessage) => {
+            if (response.error) {
+                reject(new Error(response.error));
+            } else if (response.llmAutoSolveResult != null) {
+                console.log(`LLM answered question ${JSON.stringify(request)} with answer ${JSON.stringify(response.llmAutoSolveResult)}`);
+                let alreadyChecked = false;
+                for (let input of inputs) {
+                    alreadyChecked = alreadyChecked || input.checked;
+                    input.checked = false;
+                }
+
+                for (let idx of response.llmAutoSolveResult) inputs[idx].checked = true;
+                callback();
+
+                // update progress
+                if (!alreadyChecked) {
+                    let numAnswered = parseInt(ansNumElement.innerText) + 1;
+                    ansNumElement.innerText = `${numAnswered}`;
+                    ansProgressElement.style["width"] = `${100.0 * numAnswered / totalQuestions}%`;
+                    link.classList.add("done");
+                }
+
+                resolve(true);
             }
         });
     });
