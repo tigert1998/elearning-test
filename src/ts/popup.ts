@@ -14,7 +14,7 @@ class CheckboxList extends HTMLElement {
         list.forEach((obj, i) => {
             let div = document.createElement("div");
             if (obj.type === "radio") {
-                div.innerHTML = `<div>${obj.name}</div>`;
+                div.innerHTML = `<div>&#128205;${obj.name}</div>`;
                 obj.choices.forEach((choice, choiceIndex) => {
                     let id = `checkbox-list-id-${CheckboxList.numGeneratedIDs++}`;
                     let e = document.createElement("div");

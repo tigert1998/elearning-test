@@ -13,15 +13,17 @@ chrome.runtime.onMessage.addListener((
             sendResponse({ error: error.stack });
         });
     } else if (request.llmAutoSolve != null) {
-        let questionType = request.llmAutoSolve.type === "radio" ? "单项选择题（只有一项答案）" : "多选题（至少有两项答案）";
+        let questionType = request.llmAutoSolve.type === "radio" ? "单项选择题（有且仅有一项答案）" : "多选题（至少有两项答案）";
         let prompt = `【任务】解答以下${questionType}：\n【题干】${request.llmAutoSolve.problem}`;
         request.llmAutoSolve.options.forEach((option, index) => {
             prompt += `【选项${index}】${option}\n`;
         });
-        prompt += `【要求】仅以JSON数组格式返回输出结果，例如答案为选项1、选项2，则仅返回JSON数组[1, 2]`;
+        prompt += `【要求】不要输出思考内容，仅以JSON数组格式返回输出结果，例如答案为选项1、选项2，则仅返回JSON数组[1, 2]`;
 
         sendStreamingLLMRequest(prompt, (reasoningContent: string, content: string, done: boolean) => {
             if (!done) return;
+            let match = content.match(/```json(.+)```/);
+            if (match != null) content = match[1];
             sendResponse({ llmAutoSolveResult: JSON.parse(content) });
         }).catch((error) => {
             sendResponse({ error: error.stack });
