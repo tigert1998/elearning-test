@@ -13,18 +13,8 @@ chrome.runtime.onMessage.addListener((
             sendResponse({ error: error.stack });
         });
     } else if (request.llmAutoSolve != null) {
-        let questionType = request.llmAutoSolve.type === "radio" ? "单项选择题（有且仅有一项答案）" : "多选题（至少有两项答案）";
-        let prompt = `【任务】解答以下${questionType}：\n【题干】${request.llmAutoSolve.problem}`;
-        request.llmAutoSolve.options.forEach((option, index) => {
-            prompt += `【选项${index}】${option}\n`;
-        });
-        prompt += `【要求】不要输出思考内容，仅以JSON数组格式返回输出结果，例如答案为选项1、选项2，则仅返回JSON数组[1, 2]`;
-
-        sendStreamingLLMRequest(prompt, (reasoningContent: string, content: string, done: boolean) => {
-            if (!done) return;
-            let match = content.match(/```json(.+)```/);
-            if (match != null) content = match[1];
-            sendResponse({ llmAutoSolveResult: JSON.parse(content) });
+        llmAutoSolve(request.llmAutoSolve.type, request.llmAutoSolve.problem, request.llmAutoSolve.options).then((response) => {
+            sendResponse(response);
         }).catch((error) => {
             sendResponse({ error: error.stack });
         });
@@ -45,6 +35,35 @@ chrome.runtime.onConnect.addListener((port) => {
         });
     }
 });
+
+let llmAutoSolve = async (type: string, problem: string, options: string[]): Promise<ServiceWorkerResponseMessage> => {
+    let questionType = type === "radio" ? "单项选择题（有且仅有一项答案）" : "多选题（至少有两项答案）";
+    let prompt = `【任务】解答以下${questionType}：\n【题干】${problem}`;
+    options.forEach((option, index) => {
+        prompt += `【选项${index}】${option}\n`;
+    });
+    prompt += `【要求】不要输出思考内容和其他内容，仅以JSON数组格式返回输出结果，例如答案为选项1、选项2，则仅返回JSON数组[1, 2]`;
+
+    return new Promise((resolve, reject) => {
+        sendStreamingLLMRequest(prompt, (reasoningContent: string, content: string, done: boolean) => {
+            if (!done) return;
+            let match = content.match(/```json(.+)```/);
+            if (match != null) content = match[1];
+
+            try {
+                let array = JSON.parse(content);
+                for (let i = 0; i < array.length; i++) {
+                    array[i] = parseInt(array[i]);
+                }
+                resolve({ llmAutoSolveResult: array });
+            } catch (e) {
+                reject(e as Error);
+            }
+        }).catch((error) => {
+            reject(error);
+        });
+    });
+};
 
 let parseThinkTags = (reasoningContent: string, content: string) => {
     // parse <think> and </think> tags
