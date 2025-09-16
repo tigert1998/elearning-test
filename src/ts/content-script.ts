@@ -301,7 +301,7 @@ let fillInQuestion = async (question: HTMLElement, callback: () => void) => {
             if (response.error) {
                 reject(new Error(response.error));
             } else if (response.llmAutoSolveResult != null) {
-                console.log(`LLM answered question ${JSON.stringify(request)} with answer ${JSON.stringify(response.llmAutoSolveResult)}`);
+                console.log(`LLM answered question ${JSON.stringify(request.llmAutoSolve)} with answer ${JSON.stringify(response.llmAutoSolveResult)}`);
                 let alreadyChecked = false;
                 for (let input of inputs) {
                     alreadyChecked = alreadyChecked || input.checked;
