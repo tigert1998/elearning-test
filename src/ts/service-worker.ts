@@ -1,12 +1,32 @@
 import * as XLSX from "xlsx";
-import { CheckboxConfig, CheckboxListConfig, SearchInExcelRow } from "./common";
+import { CheckboxConfig, CheckboxListConfig, SearchInExcelRow, ServiceWorkerRequestMessage, ServiceWorkerResponseMessage } from "./common";
 
-chrome.runtime.onMessage.addListener((request: any, sender: chrome.runtime.MessageSender, sendResponse: (response?: any) => void) => {
-    searchInExcel(request.searchTerm).then((results) => {
-        sendResponse({ results: results, error: null });
-    }).catch((error) => {
-        sendResponse({ results: null, error: error.stack });
-    });
+chrome.runtime.onMessage.addListener((
+    request: ServiceWorkerRequestMessage,
+    sender: chrome.runtime.MessageSender,
+    sendResponse: (response?: ServiceWorkerResponseMessage) => void
+) => {
+    if (request.bankSearchTerm != null) {
+        searchInExcel(request.bankSearchTerm).then((rows) => {
+            sendResponse({ searchInExcelRows: rows });
+        }).catch((error) => {
+            sendResponse({ error: error.stack });
+        });
+    } else if (request.llmAutoSolve != null) {
+        let questionType = request.llmAutoSolve.type === "radio" ? "单项选择题（只有一项答案）" : "多选题（至少有两项答案）";
+        let prompt = `【任务】解答以下${questionType}：\n【题干】${request.llmAutoSolve.problem}`;
+        request.llmAutoSolve.options.forEach((option, index) => {
+            prompt += `【选项${index}】${option}\n`;
+        });
+        prompt += `【要求】仅以JSON数组格式返回输出结果，例如答案为选项1、选项2，则仅返回JSON数组[1, 2]`;
+
+        sendStreamingLLMRequest(prompt, (reasoningContent: string, content: string, done: boolean) => {
+            if (!done) return;
+            sendResponse({ llmAutoSolveResult: JSON.parse(content) });
+        }).catch((error) => {
+            sendResponse({ error: error.stack });
+        });
+    }
 
     return true;
 });
@@ -14,7 +34,8 @@ chrome.runtime.onMessage.addListener((request: any, sender: chrome.runtime.Messa
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === "llm") {
         port.onMessage.addListener((msg) => {
-            sendStreamingLLMRequest(msg.text, (reasoningContent: string, content: string) => {
+            let prompt = `使用中文对以下问题进行简要解答：\n${msg.text}`;
+            sendStreamingLLMRequest(prompt, (reasoningContent: string, content: string, done: boolean) => {
                 port.postMessage({ reasoningContent, content, error: null });
             }).catch((error) => {
                 port.postMessage({ reasoningContent: null, content: null, error: error.stack });
@@ -42,11 +63,7 @@ let parseThinkTags = (reasoningContent: string, content: string) => {
     return { reasoningContent, content };
 }
 
-let buildPrompt = (text: string) => {
-    return `使用中文对以下问题进行简要解答：\n${text}`;
-};
-
-type LLMQueryCallback = (reasoningContent: string, content: string) => void;
+type LLMQueryCallback = (reasoningContent: string, content: string, done: boolean) => void;
 
 let sendStreamingLLMRequestOpenAI = async (
     llmConfig: { url: string, model: string, token?: string }, text: string, callback: LLMQueryCallback
@@ -63,7 +80,7 @@ let sendStreamingLLMRequestOpenAI = async (
             messages: [
                 {
                     role: "user",
-                    content: buildPrompt(text)
+                    content: text
                 }
             ],
             stream: true
@@ -91,7 +108,11 @@ let sendStreamingLLMRequestOpenAI = async (
 
         for (const line of lines) {
             const message = line.replace(/^data: /, '');
-            if (message === "[DONE]") return;
+            if (message === "[DONE]") {
+                let thinkTagsParsed = parseThinkTags(reasoningContent, content);
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content, true);
+                return;
+            }
 
             const parsed = JSON.parse(message);
             reasoningContent += parsed.choices[0]?.delta?.reasoning_content || "";
@@ -99,7 +120,7 @@ let sendStreamingLLMRequestOpenAI = async (
 
             let thinkTagsParsed = parseThinkTags(reasoningContent, content);
             if (thinkTagsParsed.reasoningContent.length + thinkTagsParsed.content.length > 0) {
-                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content);
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content, false);
             }
         }
     }
@@ -128,7 +149,7 @@ let sendStreamingLLMRequestBailian = async (
             stream: true,
             delta: true,
             sessionId: uniqueCode,
-            message: { "text": buildPrompt(text) }
+            message: { "text": text }
         })
     };
     response = await fetch(llmConfig.run_url, options);
@@ -153,13 +174,16 @@ let sendStreamingLLMRequestBailian = async (
         for (const line of lines) {
             const message = line.replace(/^data:/, '');
             const parsed = JSON.parse(message);
-            if (parsed.object === "complete") return;
+            if (parsed.object === "complete") {
+                let thinkTagsParsed = parseThinkTags(reasoningContent, content);
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content, true);
+                return;
+            }
 
             content += parsed.content[0]?.text?.value || "";
             let thinkTagsParsed = parseThinkTags(reasoningContent, content);
-
             if (thinkTagsParsed.reasoningContent.length + thinkTagsParsed.content.length > 0) {
-                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content);
+                callback(thinkTagsParsed.reasoningContent, thinkTagsParsed.content, false);
             }
         }
     }

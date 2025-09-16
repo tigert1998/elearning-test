@@ -1,9 +1,9 @@
 export type SearchInExcelRow = {
-    file: string,
-    sheet: string,
-    rowIndex: number,
-    headers: string[],
-    values: any[]
+    file: string;
+    sheet: string;
+    rowIndex: number;
+    headers: string[];
+    values: any[];
 };
 
 export type OneClickCompleteResult = {
@@ -13,6 +13,21 @@ export type OneClickCompleteResult = {
         index: number;
         reason: string;
     }[];
+};
+
+export type ServiceWorkerRequestMessage = {
+    bankSearchTerm?: string;
+    llmAutoSolve?: {
+        type: "radio" | "checkbox";
+        problem: string;
+        options: string[];
+    };
+};
+
+export type ServiceWorkerResponseMessage = {
+    searchInExcelRows?: SearchInExcelRow[];
+    llmAutoSolveResult?: number[];
+    error?: string;
 };
 
 export type RadioConfig = { type: "radio", name: string, choice: number, choices: string[] };
